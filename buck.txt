@@ -1,0 +1,11 @@
+1 0 V1 V=13.2 R=1e-3
+1 2 S1 R=1e-3
+0 2 D1 R=1e-3
+2 3 RRL1 R=1e9
+2 3 L1 L=300e-6 Iinit=0
+3 4 RL1 R=30.6e-3
+4 0 C1 C=6600e-6 R=1e-3 Vinit=0
+4 0 RL R=10
+
+# 1. Form matrix with all switches open
+# 2. Form matrix-diff with each switch individually closed
