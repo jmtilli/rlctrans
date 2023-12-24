@@ -393,11 +393,13 @@ void go_through_inductors(void)
 		}
 		V_across_inductor = get_V(el->n1) - get_V(el->n2);
 		dI = -V_across_inductor/el->L*dt;
+#if 0
 		if (fabs(V_across_inductor) > 100)
 		{
 			fprintf(stderr, "Limit1 reached\n");
 			exit(1);
 		}
+#endif
 		oldsign = signum(el->I_src);
 		el->I_src += dI;
 		newsign = signum(el->I_src);
@@ -406,11 +408,13 @@ void go_through_inductors(void)
 			// Probably wisest to reset to zero
 			el->I_src = 0;
 		}
+#if 0
 		if (fabs(el->I_src) > 100)
 		{
 			fprintf(stderr, "Limit2 reached\n");
 			exit(1);
 		}
+#endif
 		//fprintf(stderr, "Inductor V_across %g I_src %g\n", V_across_inductor, el->I_src);
 	}
 }
