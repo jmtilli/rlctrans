@@ -6,6 +6,7 @@
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
+const double diode_threshold = 0;
 
 int main(int argc, char **argv)
 {

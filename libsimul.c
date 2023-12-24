@@ -353,12 +353,12 @@ int go_through_diodes(void)
 			continue;
 		}
 		V_across_diode = get_V(el->n1) - get_V(el->n2);
-		if (V_across_diode < -1e-6 && el->current_switch_state_is_closed)
+		if (V_across_diode < -diode_threshold && el->current_switch_state_is_closed)
 		{
 			el->current_switch_state_is_closed = 0;
 			ret = ERR_HAVE_TO_SIMULATE_AGAIN;
 		}
-		if (V_across_diode > 1e-6 && !el->current_switch_state_is_closed)
+		if (V_across_diode > diode_threshold && !el->current_switch_state_is_closed)
 		{
 			el->current_switch_state_is_closed = 1;
 			ret = ERR_HAVE_TO_SIMULATE_AGAIN;

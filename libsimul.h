@@ -2,6 +2,7 @@
 #define _LIBSIMUL_H_
 
 const double dt;
+const double diode_threshold;
 
 enum {
 	ERR_NO_ERROR = 0,
