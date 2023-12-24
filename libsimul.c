@@ -551,6 +551,8 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 	elements_used[elements_used_sz]->Lbase = Lbase;
 	elements_used[elements_used_sz]->primary = primary;
 	elements_used[elements_used_sz]->primaryptr = NULL;
+	elements_used[elements_used_sz]->cur_phi_single = 0;
+	elements_used[elements_used_sz]->dphi_single = 0;
 	elements_used[elements_used_sz]->current_switch_state_is_closed = 1;
 	if (typ == TYPE_VOLTAGE)
 	{
@@ -926,6 +928,21 @@ void read_file(const char *fname)
 		if (typ == TYPE_TRANSFORMER && primary && Lbase <= 0)
 		{
 			fprintf(stderr, "Transformer primary %s must have base inductance\n", third);
+			exit(1);
+		}
+		if (typ == TYPE_TRANSFORMER && !primary && has_vmin)
+		{
+			fprintf(stderr, "Transformer secondary %s must not have minimum search voltage\n", third);
+			exit(1);
+		}
+		if (typ == TYPE_TRANSFORMER && !primary && has_vmax)
+		{
+			fprintf(stderr, "Transformer secondary %s must not have maximum search voltage\n", third);
+			exit(1);
+		}
+		if (typ == TYPE_TRANSFORMER && !primary && Lbase > 0)
+		{
+			fprintf(stderr, "Transformer secondary %s must not have base inductance\n", third);
 			exit(1);
 		}
 		if (typ == TYPE_TRANSFORMER && N <= 0)
