@@ -804,11 +804,18 @@ void recalc(void)
 
 void simulation_step(void)
 {
+	size_t recalccnt = 0;
 	form_isrc_vector();
 	calc_V();
 	while (go_through_all() != 0)
 	{
 		fprintf(stderr, "Recalc\n");
+		recalccnt++;
+		if (recalccnt == 32)
+		{
+			fprintf(stderr, "Recalc loop\n");
+			exit(1);
+		}
 		form_g_matrix();
 		calc_lu();
 		form_isrc_vector();
