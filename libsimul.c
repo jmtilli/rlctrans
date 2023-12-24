@@ -138,6 +138,29 @@ void set_voltage_source(const char *vsname, double V)
 	elements_used[i].V = V;
 	elements_used[i].I_src = V/elements_used[i].R;
 }
+int set_resistor(const char *rsname, double R)
+{
+	size_t i;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (strcmp(elements_used[i].name, rsname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == elements_used_sz)
+	{
+		fprintf(stderr, "Resistor %s not found\n", rsname);
+		exit(1);
+	}
+	if (elements_used[i].typ != TYPE_RESISTOR)
+	{
+		fprintf(stderr, "Element %s not a resistor\n", rsname);
+		exit(1);
+	}
+	elements_used[i].R = R;
+	return ERR_HAVE_TO_SIMULATE_AGAIN;
+}
 
 int set_switch_state(const char *swname, int state)
 {
