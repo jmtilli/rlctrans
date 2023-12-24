@@ -107,7 +107,7 @@ double *G_LU;
 int *G_ipiv;
 size_t nodecnt;
 
-struct element *elements_used = NULL;
+struct element **elements_used = NULL;
 size_t elements_used_sz = 0;
 size_t elements_used_cap = 0;
 
@@ -120,7 +120,7 @@ void set_voltage_source(const char *vsname, double V)
 	size_t i;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		if (strcmp(elements_used[i].name, vsname) == 0)
+		if (strcmp(elements_used[i]->name, vsname) == 0)
 		{
 			break;
 		}
@@ -130,20 +130,20 @@ void set_voltage_source(const char *vsname, double V)
 		fprintf(stderr, "Voltage source %s not found\n", vsname);
 		exit(1);
 	}
-	if (elements_used[i].typ != TYPE_VOLTAGE)
+	if (elements_used[i]->typ != TYPE_VOLTAGE)
 	{
 		fprintf(stderr, "Element %s not a voltage source\n", vsname);
 		exit(1);
 	}
-	elements_used[i].V = V;
-	elements_used[i].I_src = V/elements_used[i].R;
+	elements_used[i]->V = V;
+	elements_used[i]->I_src = V/elements_used[i]->R;
 }
 int set_resistor(const char *rsname, double R)
 {
 	size_t i;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		if (strcmp(elements_used[i].name, rsname) == 0)
+		if (strcmp(elements_used[i]->name, rsname) == 0)
 		{
 			break;
 		}
@@ -153,12 +153,12 @@ int set_resistor(const char *rsname, double R)
 		fprintf(stderr, "Resistor %s not found\n", rsname);
 		exit(1);
 	}
-	if (elements_used[i].typ != TYPE_RESISTOR)
+	if (elements_used[i]->typ != TYPE_RESISTOR)
 	{
 		fprintf(stderr, "Element %s not a resistor\n", rsname);
 		exit(1);
 	}
-	elements_used[i].R = R;
+	elements_used[i]->R = R;
 	return ERR_HAVE_TO_SIMULATE_AGAIN;
 }
 
@@ -167,7 +167,7 @@ int set_switch_state(const char *swname, int state)
 	size_t i;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		if (strcmp(elements_used[i].name, swname) == 0)
+		if (strcmp(elements_used[i]->name, swname) == 0)
 		{
 			break;
 		}
@@ -177,22 +177,22 @@ int set_switch_state(const char *swname, int state)
 		fprintf(stderr, "Switch %s not found\n", swname);
 		exit(1);
 	}
-	if (elements_used[i].typ != TYPE_SWITCH)
+	if (elements_used[i]->typ != TYPE_SWITCH)
 	{
 		fprintf(stderr, "Element %s not a switch\n", swname);
 		exit(1);
 	}
-	if ((!!elements_used[i].current_switch_state_is_closed) == (!!state))
+	if ((!!elements_used[i]->current_switch_state_is_closed) == (!!state))
 	{
 		return 0;
 	}
-	elements_used[i].current_switch_state_is_closed = !!state;
+	elements_used[i]->current_switch_state_is_closed = !!state;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		if (elements_used[i].typ == TYPE_DIODE)
+		if (elements_used[i]->typ == TYPE_DIODE)
 		{
 			// FIXME spooky...
-			elements_used[i].current_switch_state_is_closed = 1;
+			elements_used[i]->current_switch_state_is_closed = 1;
 		}
 	}
 	return ERR_HAVE_TO_SIMULATE_AGAIN;
@@ -266,7 +266,7 @@ void form_g_matrix(void)
 		int n1;
 		int n2;
 		double G;
-		el = &elements_used[i];
+		el = elements_used[i];
 		if (el->typ == TYPE_INDUCTOR)
 		{
 			continue;
@@ -337,7 +337,7 @@ void form_isrc_vector(void)
 		int n1;
 		int n2;
 		double Isrc;
-		el = &elements_used[i];
+		el = elements_used[i];
 		n1 = el->n1;
 		n2 = el->n2;
 		Isrc = el->I_src;
@@ -370,7 +370,7 @@ int go_through_diodes(void)
 	double V_across_diode;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		struct element *el = &elements_used[i];
+		struct element *el = elements_used[i];
 		if (el->typ != TYPE_DIODE)
 		{
 			continue;
@@ -409,7 +409,7 @@ void go_through_inductors(void)
 	int oldsign, newsign;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		struct element *el = &elements_used[i];
+		struct element *el = elements_used[i];
 		if (el->typ != TYPE_INDUCTOR)
 		{
 			continue;
@@ -450,7 +450,7 @@ void go_through_capacitors(void)
 	double dU;
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		struct element *el = &elements_used[i];
+		struct element *el = elements_used[i];
 		if (el->typ != TYPE_CAPACITOR)
 		{
 			continue;
@@ -483,7 +483,12 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 	double Iinit,
 	double L,
 	double R,
-	double C)
+	double C,
+	double N,
+	double Vmin,
+	double Vmax,
+	double Lbase,
+	int primary)
 {
 	size_t i;
 
@@ -505,15 +510,19 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 
 	for (i = 0; i < elements_used_sz; i++)
 	{
-		if (strcmp(elements_used[i].name, element) == 0)
+		if (strcmp(elements_used[i]->name, element) == 0)
 		{
+			if (elements_used[i]->typ == TYPE_TRANSFORMER && typ == TYPE_TRANSFORMER && !(elements_used[i]->primary && primary))
+			{
+				continue;
+			}
 			fprintf(stderr, "Element %s already used\n", element);
 			exit(1);
 		}
 	}
 	if (elements_used_sz >= elements_used_cap || elements_used == NULL)
 	{
-		struct element *new_eu;
+		struct element **new_eu;
 		size_t new_cap = 2*elements_used_sz+16;
 		new_eu = realloc(elements_used, sizeof(*elements_used)*new_cap);
 		if (new_eu == NULL)
@@ -524,32 +533,71 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 		elements_used = new_eu;
 		elements_used_cap = new_cap;
 	}
-	elements_used[elements_used_sz].name = strdup(element);
-	elements_used[elements_used_sz].n1 = n1;
-	elements_used[elements_used_sz].n2 = n2;
-	elements_used[elements_used_sz].typ = typ;
-	elements_used[elements_used_sz].V = V;
-	elements_used[elements_used_sz].Vinit = Vinit;
-	elements_used[elements_used_sz].Iinit = Iinit;
-	elements_used[elements_used_sz].L = L;
-	elements_used[elements_used_sz].R = R;
-	elements_used[elements_used_sz].C = C;
-	elements_used[elements_used_sz].I_src = 0;
-	elements_used[elements_used_sz].current_switch_state_is_closed = 1;
+	elements_used[elements_used_sz] = malloc(sizeof(**elements_used));
+	elements_used[elements_used_sz]->name = strdup(element);
+	elements_used[elements_used_sz]->n1 = n1;
+	elements_used[elements_used_sz]->n2 = n2;
+	elements_used[elements_used_sz]->typ = typ;
+	elements_used[elements_used_sz]->V = V;
+	elements_used[elements_used_sz]->Vinit = Vinit;
+	elements_used[elements_used_sz]->Iinit = Iinit;
+	elements_used[elements_used_sz]->L = L;
+	elements_used[elements_used_sz]->R = R;
+	elements_used[elements_used_sz]->C = C;
+	elements_used[elements_used_sz]->I_src = 0;
+	elements_used[elements_used_sz]->N = N;
+	elements_used[elements_used_sz]->Vmin = Vmin;
+	elements_used[elements_used_sz]->Vmax = Vmax;
+	elements_used[elements_used_sz]->Lbase = Lbase;
+	elements_used[elements_used_sz]->primary = primary;
+	elements_used[elements_used_sz]->primaryptr = NULL;
+	elements_used[elements_used_sz]->current_switch_state_is_closed = 1;
 	if (typ == TYPE_VOLTAGE)
 	{
-		elements_used[elements_used_sz].I_src = V/R;
+		elements_used[elements_used_sz]->I_src = V/R;
 	}
 	if (typ == TYPE_CAPACITOR)
 	{
-		elements_used[elements_used_sz].I_src = Vinit/R;
+		elements_used[elements_used_sz]->I_src = Vinit/R;
 	}
 	if (typ == TYPE_INDUCTOR)
 	{
-		elements_used[elements_used_sz].I_src = Iinit;
+		elements_used[elements_used_sz]->I_src = Iinit;
 	}
 	elements_used_sz++;
 	return 0;
+}
+
+void check_at_most_one_transformer(void)
+{
+	size_t i;
+	size_t j;
+	int cnt = 0;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (elements_used[i]->typ == TYPE_TRANSFORMER && elements_used[i]->primary)
+		{
+			cnt++;
+		}
+	}
+	if (cnt > 1)
+	{
+		fprintf(stderr, "Can have at most one transformer.\n");
+		exit(1);
+	}
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (elements_used[i]->typ == TYPE_TRANSFORMER)
+		{
+			for (j = 0; j < elements_used_sz; j++)
+			{
+				if (elements_used[j]->typ == TYPE_TRANSFORMER && elements_used[j]->primary && strcmp(elements_used[i]->name, elements_used[j]->name) == 0)
+				{
+					elements_used[i]->primaryptr = elements_used[j];
+				}
+			}
+		}
+	}
 }
 
 void read_file(const char *fname)
@@ -575,10 +623,16 @@ void read_file(const char *fname)
 		int has_voltage = 0;
 		double R = 0;
 		double V = 0;
+		int has_vmin = 0, has_vmax = 0;
 		double L = 0;
 		double C = 0;
 		double Vinit = 0;
 		double Iinit = 0;
+		double N = 0;
+		double Vmin = 0;
+		double Vmax = 0;
+		int primary = 0;
+		double Lbase = 0;
 		ret = getline_strip_comment(f, &line, &linesz);
 		if (ret == -ERR_NO_DATA)
 		{
@@ -681,6 +735,10 @@ void read_file(const char *fname)
 				//printf("It's a resistor\n");
 				typ = TYPE_RESISTOR;
 				break;
+			case 'T':
+				//printf("It's a transformer\n");
+				typ = TYPE_TRANSFORMER;
+				break;
 			default:
 				fprintf(stderr, "Can't determine what %s is\n", third);
 				exit(1);
@@ -780,6 +838,70 @@ void read_file(const char *fname)
 				}
 				Iinit = strtod(val, &endptr);
 			}
+			else if (strcmp(more, "N") == 0)
+			{
+				if (typ != TYPE_TRANSFORMER)
+				{
+					fprintf(stderr, "Only transformers have turns ratios\n");
+					exit(1);
+				}
+				N = strtod(val, &endptr);
+				if (N <= 0)
+				{
+					fprintf(stderr, "Invalid turns ratio: %lf\n", N);
+					exit(1);
+				}
+			}
+			else if (strcmp(more, "Lbase") == 0)
+			{
+				if (typ != TYPE_TRANSFORMER)
+				{
+					fprintf(stderr, "Only transformers have base inductance\n");
+					exit(1);
+				}
+				Lbase = strtod(val, &endptr);
+				if (Lbase <= 0)
+				{
+					fprintf(stderr, "Invalid base inductance: %lf\n", Lbase);
+					exit(1);
+				}
+			}
+			else if (strcmp(more, "primary") == 0)
+			{
+				long lprimary;
+				if (typ != TYPE_TRANSFORMER)
+				{
+					fprintf(stderr, "Only transformers have primary and secondary windings\n");
+					exit(1);
+				}
+				lprimary = strtol(val, &endptr, 10);
+				if (lprimary != 0 && lprimary != 1)
+				{
+					fprintf(stderr, "Valid values for primary are 0 and 1\n");
+					exit(1);
+				}
+				primary = !!lprimary;
+			}
+			else if (strcmp(more, "Vmin") == 0)
+			{
+				if (typ != TYPE_TRANSFORMER)
+				{
+					fprintf(stderr, "Only transformers have minimum search voltage\n");
+					exit(1);
+				}
+				Vmin = strtod(val, &endptr);
+				has_vmin = 1;
+			}
+			else if (strcmp(more, "Vmax") == 0)
+			{
+				if (typ != TYPE_TRANSFORMER)
+				{
+					fprintf(stderr, "Only transformers have maximum search voltage\n");
+					exit(1);
+				}
+				Vmax = strtod(val, &endptr);
+				has_vmax = 1;
+			}
 			else
 			{
 				fprintf(stderr, "Invalid parameter: %s\n", more);
@@ -791,13 +913,38 @@ void read_file(const char *fname)
 			fprintf(stderr, "Voltage source %s must have voltage\n", third);
 			exit(1);
 		}
+		if (typ == TYPE_TRANSFORMER && primary && !has_vmin)
+		{
+			fprintf(stderr, "Transformer primary %s must have minimum search voltage\n", third);
+			exit(1);
+		}
+		if (typ == TYPE_TRANSFORMER && primary && !has_vmax)
+		{
+			fprintf(stderr, "Transformer primary %s must have maximum search voltage\n", third);
+			exit(1);
+		}
+		if (typ == TYPE_TRANSFORMER && primary && Lbase <= 0)
+		{
+			fprintf(stderr, "Transformer primary %s must have base inductance\n", third);
+			exit(1);
+		}
+		if (typ == TYPE_TRANSFORMER && N <= 0)
+		{
+			fprintf(stderr, "Transformer %s must have turns ratio\n", third);
+			exit(1);
+		}
 		add_element_used(third, n1, n2, typ,
 			V,
 			Vinit,
 			Iinit,
 			L,
 			R,
-			C);
+			C,
+			N,
+			Vmin,
+			Vmax,
+			Lbase,
+			primary);
 	}
 	fclose(f);
 	free(line);
@@ -807,6 +954,7 @@ void read_file(const char *fname)
 void init_simulation(void)
 {
 	check_dense_nodes();
+	check_at_most_one_transformer();
 	nodecnt = node_seen_sz - 1;
 	G_matrix = malloc(sizeof(*G_matrix)*nodecnt*nodecnt);
 	G_LU = malloc(sizeof(*G_LU)*nodecnt*nodecnt);

@@ -23,6 +23,7 @@ enum element_type {
 	TYPE_SWITCH,
 	TYPE_VOLTAGE,
 	TYPE_DIODE,
+	TYPE_TRANSFORMER,
 };
 
 double *Isrc_vector;
@@ -49,9 +50,17 @@ struct element {
 	double L;
 	double R;
 	double C;
+	double N;
+	double Vmin;
+	double Vmax;
+	double Lbase;
+	double cur_phi_single; // only for primary
+	double dphi_single; // only for primary
+	int primary;
+	struct element *primaryptr;
 };
 
-struct element *elements_used;
+struct element **elements_used;
 size_t elements_used_sz;
 size_t elements_used_cap;
 
@@ -80,10 +89,16 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 	double Iinit,
 	double L,
 	double R,
-	double C);
+	double C,
+	double N,
+	double Vmin,
+	double Vmax,
+	double Lbase,
+	int primary);
 void read_file(const char *fname);
 void init_simulation(void);
 void recalc(void);
 void simulation_step(void);
+void check_at_most_one_transformer(void);
 
 #endif
