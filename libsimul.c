@@ -572,7 +572,7 @@ void read_file(const char *fname)
 		char *first, *second, *third, *endptr;
 		char *lineptr;
 		size_t sp;
-		int has_voltage;
+		int has_voltage = 0;
 		double R = 0;
 		double V = 0;
 		double L = 0;
@@ -734,7 +734,7 @@ void read_file(const char *fname)
 				C = strtod(val, &endptr);
 				if (C <= 0)
 				{
-					fprintf(stderr, "Invalid capacitance: %lf\n", R);
+					fprintf(stderr, "Invalid capacitance: %lf\n", C);
 					exit(1);
 				}
 			}
@@ -748,7 +748,7 @@ void read_file(const char *fname)
 				L = strtod(val, &endptr);
 				if (L <= 0)
 				{
-					fprintf(stderr, "Invalid inductance: %lf\n", R);
+					fprintf(stderr, "Invalid inductance: %lf\n", L);
 					exit(1);
 				}
 			}
