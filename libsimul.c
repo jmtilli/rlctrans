@@ -115,6 +115,30 @@ unsigned char *node_seen = NULL;
 size_t node_seen_sz = 0;
 size_t node_seen_cap = 0;
 
+void set_voltage_source(const char *vsname, double V)
+{
+	size_t i;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (strcmp(elements_used[i].name, vsname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == elements_used_sz)
+	{
+		fprintf(stderr, "Voltage source %s not found\n", vsname);
+		exit(1);
+	}
+	if (elements_used[i].typ != TYPE_VOLTAGE)
+	{
+		fprintf(stderr, "Element %s not a voltage source\n", vsname);
+		exit(1);
+	}
+	elements_used[i].V = V;
+	elements_used[i].I_src = V/elements_used[i].R;
+}
+
 int set_switch_state(const char *swname, int state)
 {
 	size_t i;
