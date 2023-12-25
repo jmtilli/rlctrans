@@ -1,0 +1,25 @@
+@toplevel
+@strict
+
+$SRC=["buck.c", "rectifier.c", "libsimul.c"]
+$OBJ=@sufsuball($SRC, ".c", ".o")
+$DEP=@sufsuball($SRC, ".c", ".d")
+$CC="cc"
+$CFLAGS=["-Wall", "-O3", "-g"]
+$LIBS=["-llapack", "-lm"]
+
+@phonyrule: 'all': 'buck' 'rectifier'
+
+@patrule: $OBJ: '%.o': '%.c' '%.d'
+@	[$CC, @$CFLAGS, "-c", "-o", $@, $<]
+
+@patrule: $DEP: '%.d': '%.c'
+@	[$CC, @$CFLAGS, "-M", "-o", $@, $<]
+
+'buck': 'buck.o' 'libsimul.o'
+@	[$CC, "-o", $@, @@suffilter($^, ".o"), @@suffilter($^, ".a"), @$LIBS]
+
+'rectifier': 'rectifier.o' 'libsimul.o'
+@	[$CC, "-o", $@, @@suffilter($^, ".o"), @@suffilter($^, ".a"), @$LIBS]
+
+@cdepincludes @autophony @autotarget @ignore $DEP
