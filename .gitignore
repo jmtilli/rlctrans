@@ -1,0 +1,6 @@
+*.d
+*.o
+/transformer
+/rectifier
+/buck
+/.stir.db
