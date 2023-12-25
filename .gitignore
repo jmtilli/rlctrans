@@ -3,4 +3,6 @@
 /transformer
 /rectifier
 /buck
+/inverterpwm
+/buckramp
 /.stir.db

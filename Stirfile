@@ -1,14 +1,14 @@
 @toplevel
 @strict
 
-$SRC=["buck.c", "rectifier.c", "transformer.c", "libsimul.c"]
+$SRC=["buck.c", "buckramp.c", "inverterpwm.c", "rectifier.c", "transformer.c", "libsimul.c"]
 $OBJ=@sufsuball($SRC, ".c", ".o")
 $DEP=@sufsuball($SRC, ".c", ".d")
 $CC="cc"
 $CFLAGS=["-Wall", "-O3", "-g"]
 $LIBS=["-llapack", "-lm"]
 
-@phonyrule: 'all': 'buck' 'rectifier' 'transformer'
+@phonyrule: 'all': 'buck' 'buckramp' 'inverterpwm' 'rectifier' 'transformer'
 
 @patrule: $OBJ: '%.o': '%.c' '%.d'
 @	[$CC, @$CFLAGS, "-c", "-o", $@, $<]
@@ -17,6 +17,12 @@ $LIBS=["-llapack", "-lm"]
 @	[$CC, @$CFLAGS, "-M", "-o", $@, $<]
 
 'buck': 'buck.o' 'libsimul.o'
+@	[$CC, "-o", $@, @@suffilter($^, ".o"), @@suffilter($^, ".a"), @$LIBS]
+
+'buckramp': 'buckramp.o' 'libsimul.o'
+@	[$CC, "-o", $@, @@suffilter($^, ".o"), @@suffilter($^, ".a"), @$LIBS]
+
+'inverterpwm': 'inverterpwm.o' 'libsimul.o'
 @	[$CC, "-o", $@, @@suffilter($^, ".o"), @@suffilter($^, ".a"), @$LIBS]
 
 'rectifier': 'rectifier.o' 'libsimul.o'
