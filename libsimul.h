@@ -7,8 +7,10 @@ const double diode_threshold;
 enum {
 	ERR_NO_ERROR = 0,
 	ERR_HAVE_TO_SIMULATE_AGAIN = 1,
-	ERR_NO_MEMORY = 2,
-	ERR_NO_DATA = 3,
+	ERR_HAVE_TO_SIMULATE_AGAIN_DIODE = 2,
+	ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER = 3,
+	ERR_NO_MEMORY = 4,
+	ERR_NO_DATA = 5,
 };
 
 int iswhiteonly(const char *ln);

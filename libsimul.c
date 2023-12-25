@@ -3,6 +3,7 @@
 #include <string.h>
 #include <lapack.h>
 #include <math.h>
+#include <stdint.h>
 #include "libsimul.h"
 
 int iswhiteonly(const char *ln)
@@ -424,12 +425,12 @@ int go_through_diodes(void)
 		if (V_across_diode < -diode_threshold && el->current_switch_state_is_closed)
 		{
 			el->current_switch_state_is_closed = 0;
-			ret = ERR_HAVE_TO_SIMULATE_AGAIN;
+			ret = ERR_HAVE_TO_SIMULATE_AGAIN_DIODE;
 		}
 		if (V_across_diode > diode_threshold && !el->current_switch_state_is_closed)
 		{
 			el->current_switch_state_is_closed = 1;
-			ret = ERR_HAVE_TO_SIMULATE_AGAIN;
+			ret = ERR_HAVE_TO_SIMULATE_AGAIN_DIODE;
 		}
 	}
 	return ret;
@@ -509,6 +510,111 @@ void go_through_capacitors(void)
 		el->I_src += dU/el->R;
 	}
 }
+double get_transformer_dphi_single(size_t el_id)
+{
+	double V_trial;
+	V_trial = elements_used[el_id]->R * elements_used[el_id]->I_src;
+	return V_trial*dt/elements_used[el_id]->N;
+}
+void go_through_transformers(void)
+{
+	size_t i;
+	double dphi_single;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		struct element *el = elements_used[i];
+		if (el->typ != TYPE_TRANSFORMER || !el->primary)
+		{
+			continue;
+		}
+		dphi_single = get_transformer_dphi_single(i);
+		el->cur_phi_single += dphi_single;
+	}
+}
+
+void set_transformer_voltage(size_t el_id, double V)
+{
+	size_t i;
+	elements_used[el_id]->I_src =
+		V /
+		elements_used[el_id]->R;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		struct element *el = elements_used[i];
+		if (el->typ == TYPE_TRANSFORMER &&
+		    !el->primary &&
+		    el->primaryptr == elements_used[el_id])
+		{
+			el->I_src = 
+				V / el->R * el->N / elements_used[el_id]->N;
+		}
+	}
+}
+
+double get_transformer_trial_phi_single(size_t el_id)
+{
+	size_t i;
+	double V_across_winding;
+	double I_R;
+	double I_tot;
+	double phi_single = 0;
+	V_across_winding =
+		get_V(elements_used[el_id]->n1) -
+		get_V(elements_used[el_id]->n2);
+	I_R = V_across_winding/elements_used[el_id]->R;
+	I_tot = elements_used[el_id]->I_src - I_R;
+	phi_single +=
+		I_tot * 
+		elements_used[el_id]->Lbase *
+		elements_used[el_id]->N;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		struct element *el = elements_used[i];
+		if (el->typ == TYPE_TRANSFORMER &&
+		    !el->primary &&
+		    el->primaryptr == elements_used[el_id])
+		{
+			V_across_winding = get_V(el->n1) - get_V(el->n2);
+			I_R = V_across_winding/el->R;
+			I_tot = el->I_src - I_R;
+			phi_single +=
+				I_tot * elements_used[el_id]->Lbase * el->N;
+		}
+	}
+	return phi_single;
+}
+
+size_t xformerid = SIZE_MAX;
+enum xformerstatetype {
+	STATE_LOBO,
+	STATE_LOBOPOST,
+	STATE_HIBO,
+	STATE_HIBOPOST,
+	STATE_ITER,
+	STATE_ITERPOST,
+	STATE_FINI,
+};
+enum xformerstatetype xformerstate = STATE_FINI;
+double loboV;
+double hiboV;
+double trialV;
+double lobophi;
+double hibophi;
+double trialphi;
+
+int double_cmp(double a, double b)
+{
+	if (a < b)
+	{
+		return -1;
+	}
+	if (a > b)
+	{
+		return 1;
+	}
+	return 0;
+}
+
 int go_through_all(void)
 {
 	int ret = 0;
@@ -517,8 +623,156 @@ int go_through_all(void)
 	{
 		return ret;
 	}
+	if (xformerstate == STATE_FINI && xformerid == SIZE_MAX)
+	{
+		size_t i;
+		for (i = 0; i < elements_used_sz; i++)
+		{
+			struct element *el = elements_used[i];
+			if (el->typ == TYPE_TRANSFORMER && el->primary)
+			{
+				break;
+			}
+		}
+		xformerid = i;
+		if (xformerid < elements_used_sz)
+		{
+			xformerstate = STATE_LOBO;
+		}
+	}
+	else if (xformerstate == STATE_FINI && xformerid < elements_used_sz)
+	{
+		size_t i;
+		for (i = 0; i < elements_used_sz; i++)
+		{
+			struct element *el = elements_used[i];
+			if (el->typ == TYPE_TRANSFORMER && el->primary)
+			{
+				break;
+			}
+		}
+		xformerid = i;
+		if (xformerid < elements_used_sz)
+		{
+			xformerstate = STATE_LOBO;
+		}
+	}
+	if (xformerstate == STATE_LOBO)
+	{
+		loboV = elements_used[xformerid]->Vmin;
+		set_transformer_voltage(xformerid, loboV);
+		xformerstate = STATE_LOBOPOST;
+		return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+	}
+	if (xformerstate == STATE_LOBOPOST)
+	{
+		int l;
+		lobophi = get_transformer_trial_phi_single(xformerid);
+		l = double_cmp(lobophi, elements_used[xformerid]->cur_phi_single);
+		if (l == 0)
+		{
+			trialV = loboV;
+			set_transformer_voltage(xformerid, trialV);
+			xformerstate = STATE_FINI;
+			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+		}
+		xformerstate = STATE_HIBO;
+	}
+	if (xformerstate == STATE_HIBO)
+	{
+		hiboV = elements_used[xformerid]->Vmax;
+		set_transformer_voltage(xformerid, hiboV);
+		xformerstate = STATE_HIBOPOST;
+		return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+	}
+	if (xformerstate == STATE_HIBOPOST)
+	{
+		int l, h;
+		hibophi = get_transformer_trial_phi_single(xformerid);
+		l = double_cmp(lobophi, elements_used[xformerid]->cur_phi_single);
+		h = double_cmp(hibophi, elements_used[xformerid]->cur_phi_single);
+		if (h == 0)
+		{
+			trialV = hiboV;
+			set_transformer_voltage(xformerid, trialV);
+			xformerstate = STATE_FINI;
+			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+		}
+		if (l == h)
+		{
+			fprintf(stderr, "Transformer out of voltage bounds\n");
+			exit(1);
+		}
+		xformerstate = STATE_ITER;
+	}
+	if (xformerstate == STATE_ITERPOST)
+	{
+		int l, h, t;
+		double iterphi;
+		iterphi = get_transformer_trial_phi_single(xformerid);
+		l = double_cmp(lobophi, elements_used[xformerid]->cur_phi_single);
+		h = double_cmp(hibophi, elements_used[xformerid]->cur_phi_single);
+		t = double_cmp(iterphi, elements_used[xformerid]->cur_phi_single);
+		if (fabs(hiboV - loboV) < 1e-9)
+		{
+			set_transformer_voltage(xformerid, trialV);
+			xformerstate = STATE_FINI;
+			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+		}
+		if (t == 0)
+		{
+			set_transformer_voltage(xformerid, trialV);
+			xformerstate = STATE_FINI;
+			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+		}
+		if (l < 0 && h > 0)
+		{
+			if (t < 0)
+			{
+				loboV = trialV;
+			}
+			else if (t > 0)
+			{
+				hiboV = trialV;
+			}
+			else
+			{
+				abort();
+			}
+		}
+		else if (l > 0 && h < 0)
+		{
+			if (t < 0)
+			{
+				hiboV = trialV;
+			}
+			else if (t > 0)
+			{
+				loboV = trialV;
+			}
+			else
+			{
+				abort();
+			}
+		}
+		else
+		{
+			abort();
+		}
+		xformerstate = STATE_ITER;
+	}
+	if (xformerstate == STATE_ITER)
+	{
+		trialV = (loboV+hiboV)/2;
+		set_transformer_voltage(xformerid, trialV);
+		xformerstate = STATE_ITERPOST;
+		return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+	}
 	go_through_inductors();
 	go_through_capacitors();
+	go_through_transformers();
+	xformerid = SIZE_MAX;
+	xformerstate = STATE_FINI;
 	return 0;
 }
 
@@ -1046,9 +1300,9 @@ void simulation_step(void)
 	calc_V();
 	while (go_through_all() != 0)
 	{
-		fprintf(stderr, "Recalc\n");
+		//fprintf(stderr, "Recalc\n");
 		recalccnt++;
-		if (recalccnt == 32)
+		if (recalccnt == 1024)
 		{
 			fprintf(stderr, "Recalc loop\n");
 			exit(1);
