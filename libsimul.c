@@ -672,7 +672,7 @@ int go_through_all(void)
 		if (l == 0)
 		{
 			trialV = loboV;
-			set_transformer_voltage(xformerid, trialV);
+			//set_transformer_voltage(xformerid, trialV);
 			xformerstate = STATE_FINI;
 			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
 		}
@@ -694,7 +694,7 @@ int go_through_all(void)
 		if (h == 0)
 		{
 			trialV = hiboV;
-			set_transformer_voltage(xformerid, trialV);
+			//set_transformer_voltage(xformerid, trialV);
 			xformerstate = STATE_FINI;
 			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
 		}
@@ -715,13 +715,13 @@ int go_through_all(void)
 		t = double_cmp(iterphi, elements_used[xformerid]->cur_phi_single);
 		if (fabs(hiboV - loboV) < 1e-9)
 		{
-			set_transformer_voltage(xformerid, trialV);
+			//set_transformer_voltage(xformerid, trialV);
 			xformerstate = STATE_FINI;
 			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
 		}
 		if (t == 0)
 		{
-			set_transformer_voltage(xformerid, trialV);
+			//set_transformer_voltage(xformerid, trialV);
 			xformerstate = STATE_FINI;
 			return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
 		}
