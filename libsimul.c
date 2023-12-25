@@ -161,6 +161,28 @@ int set_inductor(const char *indname, double L)
 	elements_used[i]->L = L;
 	return 0;
 }
+double get_inductor_current(const char *indname)
+{
+	size_t i;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (strcmp(elements_used[i]->name, indname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == elements_used_sz)
+	{
+		fprintf(stderr, "Inductor %s not found\n", indname);
+		exit(1);
+	}
+	if (elements_used[i]->typ != TYPE_INDUCTOR)
+	{
+		fprintf(stderr, "Element %s not an inductor\n", indname);
+		exit(1);
+	}
+	return elements_used[i]->I_src;
+}
 int set_resistor(const char *rsname, double R)
 {
 	size_t i;

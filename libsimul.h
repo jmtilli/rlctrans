@@ -71,6 +71,7 @@ size_t node_seen_cap;
 void set_voltage_source(const char *vsname, double V);
 int set_resistor(const char *rsname, double R);
 int set_inductor(const char *indname, double L);
+double get_inductor_current(const char *indname);
 int set_switch_state(const char *swname, int state);
 void mark_node_seen(int n);
 void check_dense_nodes(void);
