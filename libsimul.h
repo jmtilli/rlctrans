@@ -95,6 +95,7 @@ struct libsimul_ctx {
 };
 
 void libsimul_init(struct libsimul_ctx *ctx, double dt, double diode_threshold);
+void libsimul_free(struct libsimul_ctx *ctx);
 
 void set_voltage_source(struct libsimul_ctx *ctx, const char *vsname, double V);
 int set_resistor(struct libsimul_ctx *ctx, const char *rsname, double R);

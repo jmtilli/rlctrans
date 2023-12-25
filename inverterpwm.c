@@ -68,5 +68,6 @@ int main(int argc, char **argv)
 			onoff = 1;
 		}
 	}
+	libsimul_free(&ctx);
 	return 0;
 }

@@ -1343,4 +1343,27 @@ void libsimul_init(struct libsimul_ctx *ctx, double dt, double diode_threshold)
 	ctx->node_seen_cap = 0;
 	ctx->xformerid = SIZE_MAX;
 	ctx->xformerstate = STATE_FINI;
+	ctx->Isrc_vector = NULL;
+	ctx->V_vector = NULL;
+	ctx->G_matrix = NULL;
+	ctx->G_LU = NULL;
+	ctx->G_ipiv = NULL;
+}
+void libsimul_free(struct libsimul_ctx *ctx)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		free(ctx->elements_used[i]->secondaryptrs);
+		free(ctx->elements_used[i]->name);
+		free(ctx->elements_used[i]);
+	}
+	free(ctx->elements_used);
+	free(ctx->node_seen);
+	free(ctx->Isrc_vector);
+	free(ctx->V_vector);
+	free(ctx->G_matrix);
+	free(ctx->G_LU);
+	free(ctx->G_ipiv);
+	libsimul_init(ctx, 0, 0);
 }

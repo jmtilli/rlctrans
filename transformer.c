@@ -20,5 +20,6 @@ int main(int argc, char **argv)
 		simulation_step(&ctx);
 		printf("%zu %g\n", i, get_V(&ctx, 3) - get_V(&ctx, 2));
 	}
+	libsimul_free(&ctx);
 	return 0;
 }
