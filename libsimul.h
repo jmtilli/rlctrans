@@ -60,6 +60,9 @@ struct element {
 	double dphi_single; // only for primary
 	int primary;
 	struct element *primaryptr;
+	struct element **secondaryptrs;
+	size_t secondaryptrs_size;
+	size_t secondaryptrs_capacity;
 };
 
 struct element **elements_used;

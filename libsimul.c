@@ -538,6 +538,7 @@ void set_transformer_voltage(size_t el_id, double V)
 	elements_used[el_id]->I_src =
 		V /
 		elements_used[el_id]->R;
+#if 0
 	for (i = 0; i < elements_used_sz; i++)
 	{
 		struct element *el = elements_used[i];
@@ -549,6 +550,14 @@ void set_transformer_voltage(size_t el_id, double V)
 				V / el->R * el->N / elements_used[el_id]->N;
 		}
 	}
+#else
+	for (i = 0; i < elements_used[el_id]->secondaryptrs_size; i++)
+	{
+		struct element *el = elements_used[el_id]->secondaryptrs[i];
+		el->I_src = 
+			V / el->R * el->N / elements_used[el_id]->N;
+	}
+#endif
 }
 
 double get_transformer_trial_phi_single(size_t el_id)
@@ -567,6 +576,7 @@ double get_transformer_trial_phi_single(size_t el_id)
 		I_tot * 
 		elements_used[el_id]->Lbase *
 		elements_used[el_id]->N;
+#if 0
 	for (i = 0; i < elements_used_sz; i++)
 	{
 		struct element *el = elements_used[i];
@@ -581,6 +591,17 @@ double get_transformer_trial_phi_single(size_t el_id)
 				I_tot * elements_used[el_id]->Lbase * el->N;
 		}
 	}
+#else
+	for (i = 0; i < elements_used[el_id]->secondaryptrs_size; i++)
+	{
+		struct element *el = elements_used[el_id]->secondaryptrs[i];
+		V_across_winding = get_V(el->n1) - get_V(el->n2);
+		I_R = V_across_winding/el->R;
+		I_tot = el->I_src - I_R;
+		phi_single -=
+			I_tot * elements_used[el_id]->Lbase * el->N;
+	}
+#endif
 	return phi_single;
 }
 
@@ -850,6 +871,9 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 	elements_used[elements_used_sz]->Lbase = Lbase;
 	elements_used[elements_used_sz]->primary = primary;
 	elements_used[elements_used_sz]->primaryptr = NULL;
+	elements_used[elements_used_sz]->secondaryptrs = NULL;
+	elements_used[elements_used_sz]->secondaryptrs_size = 0;
+	elements_used[elements_used_sz]->secondaryptrs_capacity = 0;
 	elements_used[elements_used_sz]->cur_phi_single = 0;
 	elements_used[elements_used_sz]->dphi_single = 0;
 	elements_used[elements_used_sz]->current_switch_state_is_closed = 1;
@@ -895,6 +919,19 @@ void check_at_most_one_transformer(void)
 				if (elements_used[j]->typ == TYPE_TRANSFORMER && elements_used[j]->primary && strcmp(elements_used[i]->name, elements_used[j]->name) == 0)
 				{
 					elements_used[i]->primaryptr = elements_used[j];
+					if (elements_used[j]->secondaryptrs == NULL || elements_used[j]->secondaryptrs_size >= elements_used[j]->secondaryptrs_capacity)
+					{
+						struct element **sec2;
+						size_t new_cap = elements_used[j]->secondaryptrs_size*2+16;
+						sec2 = realloc(elements_used[j]->secondaryptrs, sizeof(*sec2)*new_cap);
+						if (sec2 == NULL)
+						{
+							fprintf(stderr, "Out of memory\n");
+							exit(1);
+						}
+						elements_used[j]->secondaryptrs = sec2;
+					}
+					elements_used[j]->secondaryptrs[elements_used[j]->secondaryptrs_size++] = elements_used[i];
 				}
 			}
 		}
