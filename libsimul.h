@@ -1,9 +1,6 @@
 #ifndef _LIBSIMUL_H_
 #define _LIBSIMUL_H_
 
-const double dt;
-const double diode_threshold;
-
 enum {
 	ERR_NO_ERROR = 0,
 	ERR_HAVE_TO_SIMULATE_AGAIN = 1,
@@ -27,13 +24,6 @@ enum element_type {
 	TYPE_DIODE,
 	TYPE_TRANSFORMER,
 };
-
-double *Isrc_vector;
-double *V_vector;
-double *G_matrix;
-double *G_LU;
-int *G_ipiv;
-size_t nodecnt;
 
 // Convention: I_src is facing from n2 to n1
 // Convention: V is V_n_1 - V_n_2
@@ -65,32 +55,67 @@ struct element {
 	size_t secondaryptrs_capacity;
 };
 
-struct element **elements_used;
-size_t elements_used_sz;
-size_t elements_used_cap;
+enum xformerstatetype {
+        STATE_LOBO,
+        STATE_LOBOPOST,
+        STATE_HIBO,
+        STATE_HIBOPOST,
+        STATE_ITER,
+        STATE_ITERPOST,
+        STATE_FINI,
+};
 
-unsigned char *node_seen;
-size_t node_seen_sz;
-size_t node_seen_cap;
+struct libsimul_ctx {
+	double dt;
+	double diode_threshold;
 
-void set_voltage_source(const char *vsname, double V);
-int set_resistor(const char *rsname, double R);
-int set_inductor(const char *indname, double L);
-double get_inductor_current(const char *indname);
-int set_switch_state(const char *swname, int state);
-void mark_node_seen(int n);
-void check_dense_nodes(void);
-void form_g_matrix(void);
-void calc_lu(void);
-void calc_V(void);
-void form_isrc_vector(void);
-double get_V(int node);
-int go_through_diodes(void);
+	double *Isrc_vector;
+	double *V_vector;
+	double *G_matrix;
+	double *G_LU;
+	int *G_ipiv;
+	size_t nodecnt;
+
+	struct element **elements_used;
+	size_t elements_used_sz;
+	size_t elements_used_cap;
+
+	unsigned char *node_seen;
+	size_t node_seen_sz;
+	size_t node_seen_cap;
+
+	size_t xformerid;
+	enum xformerstatetype xformerstate;
+	double loboV;
+	double hiboV;
+	double trialV;
+	double lobophi;
+	double hibophi;
+	double trialphi;
+};
+
+void libsimul_init(struct libsimul_ctx *ctx, double dt, double diode_threshold);
+
+void set_voltage_source(struct libsimul_ctx *ctx, const char *vsname, double V);
+int set_resistor(struct libsimul_ctx *ctx, const char *rsname, double R);
+int set_inductor(struct libsimul_ctx *ctx, const char *indname, double L);
+double get_inductor_current(struct libsimul_ctx *ctx, const char *indname);
+int set_switch_state(struct libsimul_ctx *ctx, const char *swname, int state);
+void mark_node_seen(struct libsimul_ctx *ctx, int n);
+void check_dense_nodes(struct libsimul_ctx *ctx);
+void form_g_matrix(struct libsimul_ctx *ctx);
+void calc_lu(struct libsimul_ctx *ctx);
+void calc_V(struct libsimul_ctx *ctx);
+void form_isrc_vector(struct libsimul_ctx *ctx);
+double get_V(struct libsimul_ctx *ctx, int node);
+int go_through_diodes(struct libsimul_ctx *ctx);
 int signum(double d);
-void go_through_inductors(void);
-void go_through_capacitors(void);
-int go_through_all(void);
-int add_element_used(const char *element, int n1, int n2, enum element_type typ,
+void go_through_inductors(struct libsimul_ctx *ctx);
+void go_through_capacitors(struct libsimul_ctx *ctx);
+int go_through_all(struct libsimul_ctx *ctx);
+int add_element_used(
+	struct libsimul_ctx *ctx,
+	const char *element, int n1, int n2, enum element_type typ,
 	double V,
 	double Vinit,
 	double Iinit,
@@ -102,10 +127,10 @@ int add_element_used(const char *element, int n1, int n2, enum element_type typ,
 	double Vmax,
 	double Lbase,
 	int primary);
-void read_file(const char *fname);
-void init_simulation(void);
-void recalc(void);
-void simulation_step(void);
-void check_at_most_one_transformer(void);
+void read_file(struct libsimul_ctx *ctx, const char *fname);
+void init_simulation(struct libsimul_ctx *ctx);
+void recalc(struct libsimul_ctx *ctx);
+void simulation_step(struct libsimul_ctx *ctx);
+void check_at_most_one_transformer(struct libsimul_ctx *ctx);
 
 #endif

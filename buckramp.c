@@ -21,25 +21,27 @@ int main(int argc, char **argv)
 	size_t i;
 	int switch_state = 1;
 	int cnt_remain = 100*duty_cycle;
-	read_file("buckramp.txt");
-	init_simulation();
-	if (set_switch_state("S1", switch_state) != 0)
+	struct libsimul_ctx ctx;
+	libsimul_init(&ctx, dt, diode_threshold);
+	read_file(&ctx, "buckramp.txt");
+	init_simulation(&ctx);
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
 	{
 		recalc_dc();
 		cnt_remain = 100*duty_cycle;
 	}
 	for (i = 0; i < 5*1000*1000; i++)
 	{
-		simulation_step();
-		printf("%zu %g\n", i, get_V(4));
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 4));
 		cnt_remain--;
 		if (cnt_remain == 0)
 		{
 			switch_state = !switch_state;
 			//switch_state = 1;
-			if (set_switch_state("S1", switch_state) != 0)
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
 			{
-				recalc();
+				recalc(&ctx);
 			}
 			if (switch_state)
 			{
