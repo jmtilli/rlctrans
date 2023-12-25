@@ -643,7 +643,7 @@ int go_through_all(void)
 	else if (xformerstate == STATE_FINI && xformerid < elements_used_sz)
 	{
 		size_t i;
-		for (i = 0; i < elements_used_sz; i++)
+		for (i = xformerid+1; i < elements_used_sz; i++)
 		{
 			struct element *el = elements_used[i];
 			if (el->typ == TYPE_TRANSFORMER && el->primary)
