@@ -563,7 +563,7 @@ double get_transformer_trial_phi_single(size_t el_id)
 		get_V(elements_used[el_id]->n2);
 	I_R = V_across_winding/elements_used[el_id]->R;
 	I_tot = elements_used[el_id]->I_src - I_R;
-	phi_single +=
+	phi_single -=
 		I_tot * 
 		elements_used[el_id]->Lbase *
 		elements_used[el_id]->N;
@@ -577,7 +577,7 @@ double get_transformer_trial_phi_single(size_t el_id)
 			V_across_winding = get_V(el->n1) - get_V(el->n2);
 			I_R = V_across_winding/el->R;
 			I_tot = el->I_src - I_R;
-			phi_single +=
+			phi_single -=
 				I_tot * elements_used[el_id]->Lbase * el->N;
 		}
 	}
