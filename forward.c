@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 	{
 		recalc(&ctx);
 	}
-	for (i = 0; i < 5*1000*1000; i++)
+	for (i = 0; i < 3*1000*1000; i++)
 	{
 		simulation_step(&ctx);
 		printf("%zu %g\n", i, get_V(&ctx, 7) - get_V(&ctx, 4));
