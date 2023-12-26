@@ -133,5 +133,6 @@ void init_simulation(struct libsimul_ctx *ctx);
 void recalc(struct libsimul_ctx *ctx);
 void simulation_step(struct libsimul_ctx *ctx);
 void check_at_most_one_transformer(struct libsimul_ctx *ctx);
+int set_diode_hint(struct libsimul_ctx *ctx, const char *dname, int state);
 
 #endif

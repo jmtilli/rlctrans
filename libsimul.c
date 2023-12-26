@@ -228,6 +228,29 @@ int set_switch_state(struct libsimul_ctx *ctx, const char *swname, int state)
 	}
 	return ERR_HAVE_TO_SIMULATE_AGAIN;
 }
+int set_diode_hint(struct libsimul_ctx *ctx, const char *dname, int state)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, dname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Diode %s not found\n", dname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ != TYPE_DIODE)
+	{
+		fprintf(stderr, "Element %s not a diode\n", dname);
+		exit(1);
+	}
+	ctx->elements_used[i]->current_switch_state_is_closed = !!state;
+	return ERR_HAVE_TO_SIMULATE_AGAIN;
+}
 
 void mark_node_seen(struct libsimul_ctx *ctx, int n)
 {
