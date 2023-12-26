@@ -725,6 +725,30 @@ int go_through_all(struct libsimul_ctx *ctx)
 		}
 		if (l == h)
 		{
+			const double arbitrary_threshold = 1e-12;
+			const double cur_phi_single =
+				ctx->elements_used[ctx->xformerid]->cur_phi_single;
+			if (fabs(cur_phi_single) < arbitrary_threshold)
+			{
+				if (fabs(ctx->lobophi) < arbitrary_threshold ||
+				    fabs(ctx->hibophi) < arbitrary_threshold)
+				{
+					if (fabs(ctx->lobophi) <
+					    fabs(ctx->hibophi))
+					{
+						ctx->trialV = ctx->loboV;
+					}
+					else
+					{
+						ctx->trialV = ctx->hiboV;
+					}
+					ctx->xformerstate = STATE_FINI;
+					return ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER;
+				}
+			}
+			fprintf(stderr, "Cur phi single: %g\n", ctx->elements_used[ctx->xformerid]->cur_phi_single);
+			fprintf(stderr, "Lobo phi: %g\n", ctx->lobophi);
+			fprintf(stderr, "Hibo phi: %g\n", ctx->hibophi);
 			fprintf(stderr, "Transformer out of voltage bounds\n");
 			exit(1);
 		}
