@@ -507,6 +507,165 @@ Plot of output:
 
 ![true sine wave PWM inverter plot](plots/inverterpwmplot.png)
 
+### Forward converter
+
+Netlist forward.txt:
+
+```
+1 0 VS V=24 R=1e-3
+1 2 T1 N=100 primary=1 Lbase=5e-7 Vmin=-100 Vmax=100 R=6e-3
+3 1 T1 N=120 primary=0 R=12e-3
+2 0 S1 R=1e-3
+0 3 D3 R=1e-3
+5 4 T1 N=50 primary=0 R=3e-3
+0 4 Rbypass R=1e10
+5 6 D1 R=1e-3
+4 6 D2 R=1e-3
+6 7 RRL1 R=1e10
+6 7 L1 L=1e-3
+7 8 RL1 R=10e-3
+8 4 C1 C=2200e-6 R=1e-3
+8 4 RL R=24
+```
+
+Note the RRL1 which prevents isolation of node 6 and Rbypass which prevents
+isolation of transformer primary and secondary sides.
+
+Program to control it:
+
+```
+#include <stdio.h>
+#include "libsimul.h"
+
+const double dt = 1e-7; // 100 ns
+const double diode_threshold = 0;
+
+int main(int argc, char **argv)
+{
+	size_t i;
+	int switch_state = 1;
+	int cnt_remain = 500;
+	struct libsimul_ctx ctx;
+	libsimul_init(&ctx, dt, diode_threshold);
+	read_file(&ctx, "forward.txt");
+	init_simulation(&ctx);
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
+	{
+		recalc(&ctx);
+	}
+	for (i = 0; i < 3*1000*1000; i++)
+	{
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 7) - get_V(&ctx, 4));
+		cnt_remain--;
+		if (cnt_remain == 0)
+		{
+			switch_state = !switch_state;
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
+			{
+				recalc(&ctx);
+			}
+			if (switch_state)
+			{
+				cnt_remain = 500;
+			}
+			else
+			{
+				cnt_remain = 500;
+			}
+		}
+	}
+	libsimul_free(&ctx);
+	return 0;
+}
+```
+
+Plot of output:
+
+![forward converter plot](plots/forwardplot.png)
+
+Note that similar to buck converter with same control algorithm, the forward
+converter has massive overshoot.
+
+### Flyback converter
+
+Netlist flyback.txt:
+
+```
+1 0 VS V=24 R=1e-3
+1 2 T1 N=100 primary=1 Lbase=1e-6 Vmin=-5000 Vmax=5000 R=6e-3
+2 0 S1 R=1e-3
+2 0 RSbypass R=100e3
+3 4 T1 N=50 primary=0 R=3e-3
+0 3 Rbypass R=1e10
+4 5 D1 R=1e-3
+5 3 C1 C=2200e-6 R=1e-3
+5 3 RL R=24
+```
+
+Note the RSbypass which prevents transformer to be completely disconnected from
+all of the circuits when neither S1 nor D1 is closed and Rbypass which prevents
+isolation of transformer primary and secondary sides.
+
+Program to control it:
+
+```
+#include <stdio.h>
+#include "libsimul.h"
+
+const double dt = 1e-7; // 100 ns
+const double diode_threshold = 0;
+
+int main(int argc, char **argv)
+{
+	size_t i;
+	int switch_state = 1;
+	int cnt_remain = 500;
+	struct libsimul_ctx ctx;
+	libsimul_init(&ctx, dt, diode_threshold);
+	read_file(&ctx, "flyback.txt");
+	init_simulation(&ctx);
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
+	{
+		set_diode_hint(&ctx, "D1", !switch_state);
+		recalc(&ctx);
+	}
+	for (i = 0; i < 3*1000*1000; i++)
+	{
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 5) - get_V(&ctx, 3));
+		cnt_remain--;
+		if (cnt_remain == 0)
+		{
+			switch_state = !switch_state;
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
+			{
+				set_diode_hint(&ctx, "D1", !switch_state);
+				recalc(&ctx);
+			}
+			if (switch_state)
+			{
+				cnt_remain = 500;
+			}
+			else
+			{
+				cnt_remain = 100;
+			}
+		}
+	}
+	libsimul_free(&ctx);
+	return 0;
+}
+```
+
+Plot of output:
+
+![flyback converter plot](plots/flybackplot.png)
+
+Note the massive overshoot and slow oscillation. Note also the major increase
+from input voltage: flyback converters can be used to create very high voltages
+if needed.
+
 ## License
 
 All of the material related to RLCTrans is licensed under the following MIT
