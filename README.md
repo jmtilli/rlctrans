@@ -140,7 +140,8 @@ If the installation told `~/.local` is missing, create it with `mkdir` and try
 again. If the installation needed to create `~/.local/bin`, you may need to
 re-login for the programs to appear in your `PATH`.
 
-Then build RLCTrans by:
+Then ensure that some version of lapack along with its development headers is
+installed and build RLCTrans by:
 
 ```
 cd rlctrans
