@@ -54,7 +54,7 @@ control algorithm needs to be in the C code.
 
 Because the program is based on nodal analysis, resistance cannot be omitted
 for voltage sources, capacitors, switches, diodes and transformers. However,
-the resistance can be a small dummy values such as 1 milliohm. Inductors may
+the resistance can be a small dummy value such as 1 milliohm. Inductors may
 not have a built-in resistance, but you may put a second resistor element in
 series as the inductor winding resistance.
 
