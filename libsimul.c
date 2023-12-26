@@ -533,6 +533,7 @@ double get_transformer_dphi_single(struct libsimul_ctx *ctx, size_t el_id)
 void go_through_transformers(struct libsimul_ctx *ctx)
 {
 	size_t i;
+	int oldsign, newsign;
 	double dphi_single;
 	for (i = 0; i < ctx->elements_used_sz; i++)
 	{
@@ -542,7 +543,14 @@ void go_through_transformers(struct libsimul_ctx *ctx)
 			continue;
 		}
 		dphi_single = get_transformer_dphi_single(ctx, i);
+		oldsign = signum(el->cur_phi_single);
 		el->cur_phi_single += dphi_single;
+		newsign = signum(el->cur_phi_single);
+		if (oldsign != 0 && newsign != 0 && oldsign != newsign)
+		{
+			// Probably wisest to reset to zero
+			el->cur_phi_single = 0;
+		}
 	}
 }
 
