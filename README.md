@@ -595,7 +595,6 @@ Netlist flyback.txt:
 1 0 VS V=24 R=1e-3
 1 2 T1 N=100 primary=1 Lbase=1e-6 Vmin=-5000 Vmax=5000 R=6e-3
 2 0 S1 R=1e-3
-2 0 RSbypass R=100e3
 3 4 T1 N=50 primary=0 R=3e-3
 0 3 Rbypass R=1e10
 4 5 D1 R=1e-3
@@ -603,9 +602,8 @@ Netlist flyback.txt:
 5 3 RL R=24
 ```
 
-Note the RSbypass which prevents transformer to be completely disconnected from
-all of the circuits when neither S1 nor D1 is closed and Rbypass which prevents
-isolation of transformer primary and secondary sides.
+Note the Rbypass which prevents isolation of transformer primary and secondary
+sides.
 
 Program to control it:
 
