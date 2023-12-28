@@ -2,21 +2,22 @@
 
 RLCTrans is a transient analysis program for circuits where the most important
 elements are resistors, inductors and capacitors, and where switches (either
-programmatically controlled or automatic diodes) are present. One transformer
-per circuit is permitted too. The analysis method is nodal analysis (with
-capacitors, inductors and voltage sources converted to current sources with
-possible shunt resistor) and transformers are handled by binary search of the
-voltages that result in continuous core magnetic flux. The program is ideal for
-analyzing control algorithms and core saturation of switched mode power
-supplies and active power factor correction circuits. The only form of
-nonlinearities supported are either changing component values from the C code
-as the simulation runs (e.g. inductor core saturation by decreasing inductance
-from the C code, or modifying load resistance over time to simulate varying
-power consumption), diodes and switches. Diode is somewhat idealized: when it's
-off there's no leakage, and when it's on there's no voltage drop apart from the
-drop caused by its resistance. Threshold voltage may be simulated by putting a
-voltage source in series with the diode, but that's still not the full Shockley
-diode equation.
+programmatically controlled or automatic diodes) are present. Transformers are
+handled by a linear matrix model (potentially multiple transformers per
+circuit) or by binary search of the voltages that result in continuous core
+magnetic flux (one transformer per circuit only permitted in this case). The
+analysis method is nodal analysis (with capacitors, inductors, transformers and
+voltage sources converted to current sources with possible shunt resistor). The
+program is ideal for analyzing control algorithms and core saturation of
+switched mode power supplies and active power factor correction circuits. The
+only form of nonlinearities supported are either changing component values from
+the C code as the simulation runs (e.g. inductor core saturation by decreasing
+inductance from the C code, or modifying load resistance over time to simulate
+varying power consumption), diodes and switches. Diode is somewhat idealized:
+when it's off there's no leakage, and when it's on there's no voltage drop
+apart from the drop caused by its resistance. Threshold voltage may be
+simulated by putting a voltage source in series with the diode, but that's
+still not the full Shockley diode equation.
 
 MOSFETs may be simulated by a switch and possibly an antiparallel diode if
 needed, and BJTs by a switch, a voltage source that provides constant voltage
@@ -34,9 +35,11 @@ not modeled. Also further contributing to failure is the lack of nonlinear full
 Shockley diode simulation.
 
 Partial transformer support is present, but currently the count of transformers
-in a circuit is limited to 1. However, the single transformer may have an
-arbitrary number of secondary windings, so for example forward converter with a
-reset winding may be simulated.
+in a circuit is limited to 1 if using the old transformer model. For new
+transformer model, multiple transformers per circuit are permitted. However,
+even with the old model, the single transformer may have an arbitrary number of
+secondary windings, so for example forward converter with a reset winding may
+be simulated.
 
 The diode support may in some cases be somewhat unstable, since it may lead to
 endless loops where diode switches are opened and closed alternately without
@@ -57,6 +60,19 @@ for voltage sources, capacitors, switches, diodes and transformers. However,
 the resistance can be a small dummy value such as 1 milliohm. Inductors may
 not have a built-in resistance, but you may put a second resistor element in
 series as the inductor winding resistance.
+
+## Supported component types:
+
+The component name should begin with any of these letters:
+
+* `R` is a resistor (mandatory parameters: `R` for resistance)
+* `L` is an inductor (mandatory parameters: `L` for inductance)
+* `C` is a capacitor (mandatory parameters: `C` for capacitance, `R` for internal resistance)
+* `V` is a voltage source (mandatory parameters: `V` for voltage, `R` for internal resistance)
+* `D` is a diode (mandatory parameters: `R` for internal resistance)
+* `S` is a switch (mandatory parameters: `R` for internal resistance)
+* `T` is a transformer winding using binary search model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn, `Vmin` for minimum search voltage, `Vmax` for maximum search voltage)
+* `X` is a transformer winding using linear model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn)
 
 ## Some notes about failed simulations
 
@@ -88,20 +104,27 @@ diodes with switches that you control from the C code.
 
 ## Note about transformers
 
-Transformers use a binary search and you need to specify Vmin and Vmax for
-their primary. The binary search for the primary voltage is made between these
-two values. Excessively large spacing between Vmin and Vmax causes slowness; if
-the transformer would need to operate at a point that is not between Vmin and
-Vmax, simulation fails.
+Transformers with the old model (elements like `T1`) use a binary search and
+you need to specify Vmin and Vmax for their primary. The binary search for the
+primary voltage is made between these two values. Excessively large spacing
+between Vmin and Vmax causes slowness; if the transformer would need to operate
+at a point that is not between Vmin and Vmax, simulation fails.
 
 Transformer primary has a parameter Lbase which is defined as: Lbase = L/N^2,
 where L is the inductance of the primary winding and N is the count of wire
 loops in the primary winding.
 
-Transformers are currently limited to max 1 transformer per circuit, but the
-transformer may have an unlimited number of secondary windings. Secondary
-windings may not have Lbase, Vmin or Vmax; they are derived automatically from
-the wire loop count N which must be present for all transformer windings.
+Transformers with the old model are currently limited to max 1 transformer per
+circuit, but the transformer may have an unlimited number of secondary
+windings. Secondary windings may not have Lbase, Vmin or Vmax; they are derived
+automatically from the wire loop count N which must be present for all
+transformer windings.
+
+New model (elements like `X1`) does not have these restrictions, but results
+sometimes in recalculation loop if multiple diodes in the circuit are present,
+due to numerical inaccuracy. You may need to add a high-value bypass resistor
+across some diode to prevent this recalculation loop. The new linear matrix
+based transformer model is much faster.
 
 ## Note about OpenBLAS
 
@@ -377,6 +400,16 @@ Netlist transformer.txt:
 3 2 RL R=10
 ```
 
+Alternative netlist for newer fast transformer model:
+
+```
+1 0 V1 V=0 R=1e-3
+1 0 X1 N=100 primary=1 Lbase=1e-6 Vmin=-30 Vmax=30 R=60e-3
+0 2 Rbypass R=1e10
+3 2 X1 N=50 primary=0 R=60e-3
+3 2 RL R=10
+```
+
 Note the bypass resistor Rbypass with large value. It is needed to avoid
 isolating the output of transformer from the input, which would create a
 situation that voltage between input and output would not be defined.
@@ -528,8 +561,29 @@ Netlist forward.txt:
 8 4 RL R=24
 ```
 
+Alternative netlist for newer linear fast transformer model:
+
+```
+1 0 VS V=24 R=1e-3
+1 2 X1 N=100 primary=1 Lbase=5e-7 R=6e-3
+3 1 X1 N=120 primary=0 R=12e-3
+2 0 S1 R=1e-3
+0 3 D3 R=1e-3
+0 3 RRD3 R=1e10
+5 4 X1 N=50 primary=0 R=3e-3
+0 4 Rbypass R=1e10
+5 6 D1 R=1e-3
+4 6 D2 R=1e-3
+6 7 RRL1 R=1e10
+6 7 L1 L=1e-3
+7 8 RL1 R=10e-3
+8 4 C1 C=2200e-6 R=1e-3
+8 4 RL R=24
+```
+
 Note the RRL1 which prevents isolation of node 6 and Rbypass which prevents
-isolation of transformer primary and secondary sides.
+isolation of transformer primary and secondary sides. Note also the RRD3 which
+is needed for the new transformer model to prevent recalculation loop.
 
 Program to control it:
 
@@ -595,6 +649,7 @@ Netlist flyback.txt:
 1 0 VS V=24 R=1e-3
 1 2 T1 N=100 primary=1 Lbase=1e-6 Vmin=-5000 Vmax=5000 R=6e-3
 2 0 S1 R=1e-3
+2 0 RRS1 R=1e10
 3 4 T1 N=50 primary=0 R=3e-3
 0 3 Rbypass R=1e10
 4 5 D1 R=1e-3
@@ -602,8 +657,22 @@ Netlist flyback.txt:
 5 3 RL R=24
 ```
 
+Alternative netlist for newer fast transformer model:
+
+```
+1 0 VS V=24 R=1e-3
+1 2 X1 N=100 primary=1 Lbase=1e-6 R=6e-3
+2 0 S1 R=1e-3
+3 4 X1 N=50 primary=0 R=3e-3
+0 3 Rbypass R=1e10
+4 5 D1 R=1e-3
+5 3 C1 C=2200e-6 R=1e-3
+5 3 RL R=24
+```
+
 Note the Rbypass which prevents isolation of transformer primary and secondary
-sides.
+sides. Note also RRS1 for bypassing the switch which is needed for the old
+transformer model.
 
 Program to control it:
 

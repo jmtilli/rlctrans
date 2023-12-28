@@ -352,6 +352,47 @@ void form_g_matrix(struct libsimul_ctx *ctx)
 			ctx->G_matrix[(n2-1)*nodecnt+(n1-1)] -= G;
 		}
 	}
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		size_t j,k;
+		el = ctx->elements_used[i];
+		if (el->typ != TYPE_TRANSFORMER_DIRECT || !el->primary)
+		{
+			continue;
+		}
+		for (j = 0; j < el->allptrs_size; j++)
+		{
+			for (k = 0; k < el->allptrs_size; k++)
+			{
+				struct element *thiselement = el->allptrs[j];
+				struct element *thatelement = el->allptrs[k];
+				int this1 = thiselement->n1;
+				int this2 = thiselement->n2;
+				int that1 = thatelement->n1;
+				int that2 = thatelement->n2;
+				double G = 
+					(1.0/thatelement->R/thiselement->R)*thatelement->N*thiselement->N
+					/ (el->N * el->N * el->transformer_direct_denom);
+				G = -G; // This is necessary!
+				if (this1 != 0 && that1 != 0)
+				{
+					ctx->G_matrix[(this1-1)*nodecnt+(that1-1)] += G;
+				}
+				if (this2 != 0 && that2 != 0)
+				{
+					ctx->G_matrix[(this2-1)*nodecnt+(that2-1)] += G;
+				}
+				if (this1 != 0 && that2 != 0)
+				{
+					ctx->G_matrix[(this1-1)*nodecnt+(that2-1)] -= G;
+				}
+				if (this2 != 0 && that1 != 0)
+				{
+					ctx->G_matrix[(this2-1)*nodecnt+(that1-1)] -= G;
+				}
+			}
+		}
+	}
 }
 void calc_lu(struct libsimul_ctx *ctx)
 {
@@ -397,6 +438,10 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 		int n2;
 		double Isrc;
 		el = ctx->elements_used[i];
+		if (el->typ == TYPE_TRANSFORMER_DIRECT)
+		{
+			continue;
+		}
 		n1 = el->n1;
 		n2 = el->n2;
 		Isrc = el->I_src;
@@ -407,6 +452,33 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 		if (n2 != 0)
 		{
 			ctx->Isrc_vector[n2-1] -= Isrc;
+		}
+	}
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		size_t j;
+		el = ctx->elements_used[i];
+		if (el->typ != TYPE_TRANSFORMER_DIRECT || !el->primary)
+		{
+			continue;
+		}
+		for (j = 0; j < el->allptrs_size; j++)
+		{
+			struct element *winding = el->allptrs[j];
+			int n1 = winding->n1;
+			int n2 = winding->n2;
+			double Isrc =
+				winding->N/el->N * 1.0/winding->R *
+				el->transformer_direct_const
+				/ el->transformer_direct_denom;
+			if (n1 != 0)
+			{
+				ctx->Isrc_vector[n1-1] += Isrc;
+			}
+			if (n2 != 0)
+			{
+				ctx->Isrc_vector[n2-1] -= Isrc;
+			}
 		}
 	}
 }
@@ -553,14 +625,57 @@ void go_through_transformers(struct libsimul_ctx *ctx)
 		}
 	}
 }
+double get_transformer_direct_dconst(struct libsimul_ctx *ctx, size_t i)
+{
+	struct element *el = ctx->elements_used[i];
+	const double Const = el->transformer_direct_const;
+	const double denom = el->transformer_direct_denom;
+	//denom = (N_3/N_1*N_3/N_1*1/R_3 + N_2/N_1*N_2/N_1*1/R_2 + N_1/N_1*N_1/N_1*1/R_1)
+	//double V_1 = {Const + (V_nc1-V_nc2)/R_3*N_3/N_1 + (V_nb1-V_nb2)/R_2*N_2/N_1 + (V_na1-V_na2)/R_1*N_1/N_1}/denom;
+	double V_1;
+	size_t j;
+	V_1 = Const;
+	for (j = 0; j < el->allptrs_size; j++)
+	{
+		struct element *winding = el->allptrs[j];
+		double contribution = (get_V(ctx, winding->n1) - get_V(ctx, winding->n2))/winding->R*winding->N/el->N;
+		V_1 += contribution;
+	}
+	V_1 /= denom;
+	return V_1*ctx->dt/(el->Lbase*el->N*el->N);
+
+}
+void go_through_direct_transformers(struct libsimul_ctx *ctx)
+{
+	size_t i;
+	int oldsign, newsign;
+	double dconst;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		struct element *el = ctx->elements_used[i];
+		if (el->typ != TYPE_TRANSFORMER_DIRECT || !el->primary)
+		{
+			continue;
+		}
+		dconst = get_transformer_direct_dconst(ctx, i);
+		oldsign = signum(el->transformer_direct_const);
+		el->transformer_direct_const -= dconst;
+		newsign = signum(el->transformer_direct_const);
+		if (oldsign != 0 && newsign != 0 && oldsign != newsign)
+		{
+			// Probably wisest to reset to zero
+			el->transformer_direct_const = 0;
+		}
+	}
+}
 
 void set_transformer_voltage(struct libsimul_ctx *ctx, size_t el_id, double V)
 {
 	size_t i;
+#if 0
 	ctx->elements_used[el_id]->I_src =
 		V /
 		ctx->elements_used[el_id]->R;
-#if 0
 	for (i = 0; i < elements_used_sz; i++)
 	{
 		struct element *el = elements_used[i];
@@ -573,9 +688,9 @@ void set_transformer_voltage(struct libsimul_ctx *ctx, size_t el_id, double V)
 		}
 	}
 #else
-	for (i = 0; i < ctx->elements_used[el_id]->secondaryptrs_size; i++)
+	for (i = 0; i < ctx->elements_used[el_id]->allptrs_size; i++)
 	{
-		struct element *el = ctx->elements_used[el_id]->secondaryptrs[i];
+		struct element *el = ctx->elements_used[el_id]->allptrs[i];
 		el->I_src = 
 			V / el->R * el->N / ctx->elements_used[el_id]->N;
 	}
@@ -589,6 +704,7 @@ double get_transformer_trial_phi_single(struct libsimul_ctx *ctx, size_t el_id)
 	double I_R;
 	double I_tot;
 	double phi_single = 0;
+#if 0
 	V_across_winding =
 		get_V(ctx, ctx->elements_used[el_id]->n1) -
 		get_V(ctx, ctx->elements_used[el_id]->n2);
@@ -598,7 +714,6 @@ double get_transformer_trial_phi_single(struct libsimul_ctx *ctx, size_t el_id)
 		I_tot * 
 		ctx->elements_used[el_id]->Lbase *
 		ctx->elements_used[el_id]->N;
-#if 0
 	for (i = 0; i < elements_used_sz; i++)
 	{
 		struct element *el = elements_used[i];
@@ -614,9 +729,9 @@ double get_transformer_trial_phi_single(struct libsimul_ctx *ctx, size_t el_id)
 		}
 	}
 #else
-	for (i = 0; i < ctx->elements_used[el_id]->secondaryptrs_size; i++)
+	for (i = 0; i < ctx->elements_used[el_id]->allptrs_size; i++)
 	{
-		struct element *el = ctx->elements_used[el_id]->secondaryptrs[i];
+		struct element *el = ctx->elements_used[el_id]->allptrs[i];
 		V_across_winding = get_V(ctx, el->n1) - get_V(ctx, el->n2);
 		I_R = V_across_winding/el->R;
 		I_tot = el->I_src - I_R;
@@ -820,6 +935,7 @@ int go_through_all(struct libsimul_ctx *ctx)
 	go_through_inductors(ctx);
 	go_through_capacitors(ctx);
 	go_through_transformers(ctx);
+	go_through_direct_transformers(ctx);
 	ctx->xformerid = SIZE_MAX;
 	ctx->xformerstate = STATE_FINI;
 	return 0;
@@ -865,6 +981,10 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 			{
 				continue;
 			}
+			if (ctx->elements_used[i]->typ == TYPE_TRANSFORMER_DIRECT && typ == TYPE_TRANSFORMER_DIRECT && !(ctx->elements_used[i]->primary && primary))
+			{
+				continue;
+			}
 			fprintf(stderr, "Element %s already used\n", element);
 			exit(1);
 		}
@@ -901,11 +1021,13 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	el->Lbase = Lbase;
 	el->primary = primary;
 	el->primaryptr = NULL;
-	el->secondaryptrs = NULL;
-	el->secondaryptrs_size = 0;
-	el->secondaryptrs_capacity = 0;
+	el->allptrs = NULL;
+	el->allptrs_size = 0;
+	el->allptrs_capacity = 0;
 	el->cur_phi_single = 0;
 	el->dphi_single = 0;
+	el->transformer_direct_denom = 0;
+	el->transformer_direct_const = 0;
 	el->current_switch_state_is_closed = 1;
 	if (typ == TYPE_VOLTAGE)
 	{
@@ -950,20 +1072,61 @@ void check_at_most_one_transformer(struct libsimul_ctx *ctx)
 				if (ctx->elements_used[j]->typ == TYPE_TRANSFORMER && ctx->elements_used[j]->primary && strcmp(ctx->elements_used[i]->name, ctx->elements_used[j]->name) == 0)
 				{
 					ctx->elements_used[i]->primaryptr = ctx->elements_used[j];
-					if (ctx->elements_used[j]->secondaryptrs == NULL || ctx->elements_used[j]->secondaryptrs_size >= ctx->elements_used[j]->secondaryptrs_capacity)
+					if (ctx->elements_used[j]->allptrs == NULL || ctx->elements_used[j]->allptrs_size >= ctx->elements_used[j]->allptrs_capacity)
 					{
 						struct element **sec2;
-						size_t new_cap = ctx->elements_used[j]->secondaryptrs_size*2+16;
-						sec2 = realloc(ctx->elements_used[j]->secondaryptrs, sizeof(*sec2)*new_cap);
+						size_t new_cap = ctx->elements_used[j]->allptrs_size*2+16;
+						sec2 = realloc(ctx->elements_used[j]->allptrs, sizeof(*sec2)*new_cap);
 						if (sec2 == NULL)
 						{
 							fprintf(stderr, "Out of memory\n");
 							exit(1);
 						}
-						ctx->elements_used[j]->secondaryptrs = sec2;
+						ctx->elements_used[j]->allptrs = sec2;
 					}
-					ctx->elements_used[j]->secondaryptrs[ctx->elements_used[j]->secondaryptrs_size++] = ctx->elements_used[i];
+					ctx->elements_used[j]->allptrs[ctx->elements_used[j]->allptrs_size++] = ctx->elements_used[i];
 				}
+			}
+		}
+	}
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (ctx->elements_used[i]->typ == TYPE_TRANSFORMER_DIRECT)
+		{
+			for (j = 0; j < elements_used_sz; j++)
+			{
+				if (ctx->elements_used[j]->typ == TYPE_TRANSFORMER_DIRECT && ctx->elements_used[j]->primary && strcmp(ctx->elements_used[i]->name, ctx->elements_used[j]->name) == 0)
+				{
+					ctx->elements_used[i]->primaryptr = ctx->elements_used[j];
+					if (ctx->elements_used[j]->allptrs == NULL || ctx->elements_used[j]->allptrs_size >= ctx->elements_used[j]->allptrs_capacity)
+					{
+						struct element **sec2;
+						size_t new_cap = ctx->elements_used[j]->allptrs_size*2+16;
+						sec2 = realloc(ctx->elements_used[j]->allptrs, sizeof(*sec2)*new_cap);
+						if (sec2 == NULL)
+						{
+							fprintf(stderr, "Out of memory\n");
+							exit(1);
+						}
+						ctx->elements_used[j]->allptrs = sec2;
+					}
+					ctx->elements_used[j]->allptrs[ctx->elements_used[j]->allptrs_size++] = ctx->elements_used[i];
+				}
+			}
+		}
+	}
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		if (ctx->elements_used[i]->typ == TYPE_TRANSFORMER_DIRECT && ctx->elements_used[i]->primary)
+		{
+			struct element *primary = ctx->elements_used[i];
+			for (j = 0; j < ctx->elements_used[i]->allptrs_size; j++)
+			{
+				struct element *winding = ctx->elements_used[i]->allptrs[j];
+				// For three-winding transformer:
+				// denom = (N_3/N_1*N_3/N_1*1/R_3 + N_2/N_1*N_2/N_1*1/R_2 + N_1/N_1*N_1/N_1*1/R_1)
+				primary->transformer_direct_denom +=
+					(winding->N/primary->N)*(winding->N/primary->N)*1.0/winding->R;
 			}
 		}
 	}
@@ -1108,6 +1271,10 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 				//printf("It's a transformer\n");
 				typ = TYPE_TRANSFORMER;
 				break;
+			case 'X':
+				//printf("It's a transformer\n");
+				typ = TYPE_TRANSFORMER_DIRECT;
+				break;
 			default:
 				fprintf(stderr, "Can't determine what %s is\n", third);
 				exit(1);
@@ -1209,7 +1376,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			}
 			else if (strcmp(more, "N") == 0)
 			{
-				if (typ != TYPE_TRANSFORMER)
+				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT)
 				{
 					fprintf(stderr, "Only transformers have turns ratios\n");
 					exit(1);
@@ -1223,7 +1390,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			}
 			else if (strcmp(more, "Lbase") == 0)
 			{
-				if (typ != TYPE_TRANSFORMER)
+				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT)
 				{
 					fprintf(stderr, "Only transformers have base inductance\n");
 					exit(1);
@@ -1238,7 +1405,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			else if (strcmp(more, "primary") == 0)
 			{
 				long lprimary;
-				if (typ != TYPE_TRANSFORMER)
+				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT)
 				{
 					fprintf(stderr, "Only transformers have primary and secondary windings\n");
 					exit(1);
@@ -1253,7 +1420,8 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			}
 			else if (strcmp(more, "Vmin") == 0)
 			{
-				if (typ != TYPE_TRANSFORMER)
+				//if (typ != TYPE_TRANSFORMER)
+				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT)
 				{
 					fprintf(stderr, "Only transformers have minimum search voltage\n");
 					exit(1);
@@ -1263,7 +1431,8 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			}
 			else if (strcmp(more, "Vmax") == 0)
 			{
-				if (typ != TYPE_TRANSFORMER)
+				//if (typ != TYPE_TRANSFORMER)
+				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT)
 				{
 					fprintf(stderr, "Only transformers have maximum search voltage\n");
 					exit(1);
@@ -1292,27 +1461,27 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			fprintf(stderr, "Transformer primary %s must have maximum search voltage\n", third);
 			exit(1);
 		}
-		if (typ == TYPE_TRANSFORMER && primary && Lbase <= 0)
+		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && primary && Lbase <= 0)
 		{
 			fprintf(stderr, "Transformer primary %s must have base inductance\n", third);
 			exit(1);
 		}
-		if (typ == TYPE_TRANSFORMER && !primary && has_vmin)
+		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && !primary && has_vmin)
 		{
 			fprintf(stderr, "Transformer secondary %s must not have minimum search voltage\n", third);
 			exit(1);
 		}
-		if (typ == TYPE_TRANSFORMER && !primary && has_vmax)
+		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && !primary && has_vmax)
 		{
 			fprintf(stderr, "Transformer secondary %s must not have maximum search voltage\n", third);
 			exit(1);
 		}
-		if (typ == TYPE_TRANSFORMER && !primary && Lbase > 0)
+		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && !primary && Lbase > 0)
 		{
 			fprintf(stderr, "Transformer secondary %s must not have base inductance\n", third);
 			exit(1);
 		}
-		if (typ == TYPE_TRANSFORMER && N <= 0)
+		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && N <= 0)
 		{
 			fprintf(stderr, "Transformer %s must have turns ratio\n", third);
 			exit(1);
@@ -1409,7 +1578,7 @@ void libsimul_free(struct libsimul_ctx *ctx)
 	size_t i;
 	for (i = 0; i < ctx->elements_used_sz; i++)
 	{
-		free(ctx->elements_used[i]->secondaryptrs);
+		free(ctx->elements_used[i]->allptrs);
 		free(ctx->elements_used[i]->name);
 		free(ctx->elements_used[i]);
 	}

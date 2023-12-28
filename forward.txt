@@ -1,9 +1,10 @@
 1 0 VS V=24 R=1e-3
-1 2 T1 N=100 primary=1 Lbase=5e-7 Vmin=-100 Vmax=100 R=6e-3
-3 1 T1 N=120 primary=0 R=12e-3
+1 2 X1 N=100 primary=1 Lbase=5e-7 Vmin=-100 Vmax=100 R=6e-3
+3 1 X1 N=120 primary=0 R=12e-3
 2 0 S1 R=1e-3
 0 3 D3 R=1e-3
-5 4 T1 N=50 primary=0 R=3e-3
+0 3 RRD3 R=1e10
+5 4 X1 N=50 primary=0 R=3e-3
 0 4 Rbypass R=1e10
 5 6 D1 R=1e-3
 4 6 D2 R=1e-3

@@ -23,6 +23,7 @@ enum element_type {
 	TYPE_VOLTAGE,
 	TYPE_DIODE,
 	TYPE_TRANSFORMER,
+	TYPE_TRANSFORMER_DIRECT,
 };
 
 // Convention: I_src is facing from n2 to n1
@@ -50,9 +51,11 @@ struct element {
 	double dphi_single; // only for primary
 	int primary;
 	struct element *primaryptr;
-	struct element **secondaryptrs;
-	size_t secondaryptrs_size;
-	size_t secondaryptrs_capacity;
+	struct element **allptrs;
+	size_t allptrs_size;
+	size_t allptrs_capacity;
+	double transformer_direct_denom;
+	double transformer_direct_const;
 };
 
 enum xformerstatetype {
