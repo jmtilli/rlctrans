@@ -69,7 +69,7 @@ The component name should begin with any of these letters:
 * `L` is an inductor (mandatory parameters: `L` for inductance)
 * `C` is a capacitor (mandatory parameters: `C` for capacitance, `R` for internal resistance)
 * `V` is a voltage source (mandatory parameters: `V` for voltage, `R` for internal resistance)
-* `D` is a diode (mandatory parameters: `R` for internal resistance)
+* `D` is a diode (mandatory parameters: `R` for internal resistance, optional parameters: `diode_threshold` as the positive threshold voltage which avoids recalculation loops)
 * `S` is a switch (mandatory parameters: `R` for internal resistance)
 * `T` is a transformer winding using binary search model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn, `Vmin` for minimum search voltage, `Vmax` for maximum search voltage)
 * `X` is a transformer winding using linear model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn)
