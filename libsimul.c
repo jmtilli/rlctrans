@@ -508,12 +508,12 @@ int go_through_diodes(struct libsimul_ctx *ctx)
 			continue;
 		}
 		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
-		if (V_across_diode < -ctx->diode_threshold && el->current_switch_state_is_closed)
+		if (V_across_diode < -el->diode_threshold && el->current_switch_state_is_closed)
 		{
 			el->current_switch_state_is_closed = 0;
 			ret = ERR_HAVE_TO_SIMULATE_AGAIN_DIODE;
 		}
-		if (V_across_diode > ctx->diode_threshold && !el->current_switch_state_is_closed)
+		if (V_across_diode > el->diode_threshold && !el->current_switch_state_is_closed)
 		{
 			el->current_switch_state_is_closed = 1;
 			ret = ERR_HAVE_TO_SIMULATE_AGAIN_DIODE;
@@ -952,7 +952,8 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	double Vmin,
 	double Vmax,
 	double Lbase,
-	int primary)
+	int primary,
+	double diode_threshold)
 {
 	size_t i;
 	struct element *el;
@@ -1029,6 +1030,7 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	el->transformer_direct_denom = 0;
 	el->transformer_direct_const = 0;
 	el->current_switch_state_is_closed = 1;
+	el->diode_threshold = diode_threshold;
 	if (typ == TYPE_VOLTAGE)
 	{
 		el->I_src = V/R;
@@ -1165,6 +1167,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 		double Vmax = 0;
 		int primary = 0;
 		double Lbase = 0;
+		double diode_threshold = 0;
 		ret = getline_strip_comment(f, &line, &linesz);
 		if (ret == -ERR_NO_DATA)
 		{
@@ -1440,6 +1443,20 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 				Vmax = strtod(val, &endptr);
 				has_vmax = 1;
 			}
+			else if (strcmp(more, "diode_threshold") == 0)
+			{
+				if (typ != TYPE_DIODE)
+				{
+					fprintf(stderr, "Only diodes have threshold\n");
+					exit(1);
+				}
+				diode_threshold = strtod(val, &endptr);
+				if (diode_threshold < 0)
+				{
+					fprintf(stderr, "Invalid diode threshold: %lf\n", diode_threshold);
+					exit(1);
+				}
+			}
 			else
 			{
 				fprintf(stderr, "Invalid parameter: %s\n", more);
@@ -1497,7 +1514,8 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			Vmin,
 			Vmax,
 			Lbase,
-			primary);
+			primary,
+			diode_threshold);
 	}
 	fclose(f);
 	free(line);
@@ -1555,10 +1573,9 @@ void simulation_step(struct libsimul_ctx *ctx)
 	}
 }
 
-void libsimul_init(struct libsimul_ctx *ctx, double dt, double diode_threshold)
+void libsimul_init(struct libsimul_ctx *ctx, double dt)
 {
 	ctx->dt = dt;
-	ctx->diode_threshold = diode_threshold;
 	ctx->elements_used = NULL;
 	ctx->elements_used_sz = 0;
 	ctx->elements_used_cap = 0;
@@ -1589,5 +1606,5 @@ void libsimul_free(struct libsimul_ctx *ctx)
 	free(ctx->G_matrix);
 	free(ctx->G_LU);
 	free(ctx->G_ipiv);
-	libsimul_init(ctx, 0, 0);
+	libsimul_init(ctx, 0);
 }

@@ -56,6 +56,7 @@ struct element {
 	size_t allptrs_capacity;
 	double transformer_direct_denom;
 	double transformer_direct_const;
+	double diode_threshold;
 };
 
 enum xformerstatetype {
@@ -97,7 +98,7 @@ struct libsimul_ctx {
 	double trialphi;
 };
 
-void libsimul_init(struct libsimul_ctx *ctx, double dt, double diode_threshold);
+void libsimul_init(struct libsimul_ctx *ctx, double dt);
 void libsimul_free(struct libsimul_ctx *ctx);
 
 void set_voltage_source(struct libsimul_ctx *ctx, const char *vsname, double V);
@@ -130,7 +131,8 @@ int add_element_used(
 	double Vmin,
 	double Vmax,
 	double Lbase,
-	int primary);
+	int primary,
+	double diode_threshold);
 void read_file(struct libsimul_ctx *ctx, const char *fname);
 void init_simulation(struct libsimul_ctx *ctx);
 void recalc(struct libsimul_ctx *ctx);

@@ -3,14 +3,13 @@
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 1e-6;
 
 int main(int argc, char **argv)
 {
 	size_t i;
 	double t = 0.0;
 	struct libsimul_ctx ctx;
-	libsimul_init(&ctx, dt, diode_threshold);
+	libsimul_init(&ctx, dt);
 	read_file(&ctx, "rectifier.txt");
 	init_simulation(&ctx);
 	for (i = 0; i < 5*1000*1000; i++)

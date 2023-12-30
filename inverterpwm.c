@@ -3,7 +3,6 @@
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 
 void set_switches(struct libsimul_ctx *ctx, int onoff)
 {
@@ -38,7 +37,7 @@ int main(int argc, char **argv)
 	double ontime = 1e-5, offtime = 1e-5, V_out_ideal;
 	int onoff = 0;
 	struct libsimul_ctx ctx;
-	libsimul_init(&ctx, dt, diode_threshold);
+	libsimul_init(&ctx, dt);
 	read_file(&ctx, "inverterpwm.txt");
 	init_simulation(&ctx);
 	set_switches(&ctx, 1);

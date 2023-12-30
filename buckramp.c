@@ -2,7 +2,6 @@
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 double duty_cycle = 0.02;
 
 void recalc_dc(void)
@@ -22,7 +21,7 @@ int main(int argc, char **argv)
 	int switch_state = 1;
 	int cnt_remain = 100*duty_cycle;
 	struct libsimul_ctx ctx;
-	libsimul_init(&ctx, dt, diode_threshold);
+	libsimul_init(&ctx, dt);
 	read_file(&ctx, "buckramp.txt");
 	init_simulation(&ctx);
 	if (set_switch_state(&ctx, "S1", switch_state) != 0)
