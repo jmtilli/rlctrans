@@ -202,24 +202,25 @@ Main program which modifies value of `RL` dynamically:
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 1e-6;
 
 int main(int argc, char **argv)
 {
 	size_t i;
 	double t = 0.0;
-	read_file("rectifier.txt");
-	init_simulation();
+	struct libsimul_ctx ctx;
+	linsimul_init(&ctx, dt);
+	read_file(&ctx, "rectifier.txt");
+	init_simulation(&ctx);
 	for (i = 0; i < 5*1000*1000; i++)
 	{
-		set_voltage_source("V1", 24.0*sin(2*3.14159265358979*50.0*t));
-		if (set_resistor("RL", 10.0*(1+0.3*sin(2*3.14159265358979*75.0*t))) != 0)
+		set_voltage_source(&ctx, "V1", 24.0*sin(2*3.14159265358979*50.0*t));
+		if (set_resistor(&ctx, "RL", 10.0*(1+0.3*sin(2*3.14159265358979*75.0*t))) != 0)
 		{
-			recalc();
+			recalc(&ctx);
 		}
 		t += dt;
-		simulation_step();
-		printf("%zu %g\n", i, get_V(2)-get_V(3));
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 2)-get_V(&ctx, 3));
 	}
 	return 0;
 }
@@ -256,30 +257,31 @@ Main program:
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 
 int main(int argc, char **argv)
 {
 	size_t i;
 	int switch_state = 1;
 	int cnt_remain = 500;
-	read_file("buck.txt");
-	init_simulation();
-	if (set_switch_state("S1", switch_state) != 0)
+	struct libsimul_ctx ctx;
+	linsimul_init(&ctx, dt);
+	read_file(&ctx, "buck.txt");
+	init_simulation(&ctx);
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
 	{
-		recalc();
+		recalc(&ctx);
 	}
 	for (i = 0; i < 5*1000*1000; i++)
 	{
-		simulation_step();
-		printf("%zu %g\n", i, get_V(4));
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 4));
 		cnt_remain--;
 		if (cnt_remain == 0)
 		{
 			switch_state = !switch_state;
-			if (set_switch_state("S1", switch_state) != 0)
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
 			{
-				recalc();
+				recalc(&ctx);
 			}
 			if (switch_state)
 			{
@@ -331,7 +333,6 @@ conducting and S1 is open.
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 double duty_cycle = 0.02;
 
 void recalc_dc(void)
@@ -350,24 +351,26 @@ int main(int argc, char **argv)
 	size_t i;
 	int switch_state = 1;
 	int cnt_remain = 100*duty_cycle;
-	read_file("buckramp.txt");
-	init_simulation();
-	if (set_switch_state("S1", switch_state) != 0)
+	struct libsimul_ctx ctx;
+	linsimul_init(&ctx, dt);
+	read_file(&ctx, "buckramp.txt");
+	init_simulation(&ctx);
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
 	{
 		recalc_dc();
 		cnt_remain = 100*duty_cycle;
 	}
 	for (i = 0; i < 5*1000*1000; i++)
 	{
-		simulation_step();
-		printf("%zu %g\n", i, get_V(4));
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 4));
 		cnt_remain--;
 		if (cnt_remain == 0)
 		{
 			switch_state = !switch_state;
-			if (set_switch_state("S1", switch_state) != 0)
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
 			{
-				recalc();
+				recalc(&ctx);
 			}
 			if (switch_state)
 			{
@@ -422,20 +425,21 @@ Main program:
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 
 int main(int argc, char **argv)
 {
 	size_t i;
 	double t = 0.0;
-	read_file("transformer.txt");
-	init_simulation();
+	struct libsimul_ctx ctx;
+	linsimul_init(&ctx, dt);
+	read_file(&ctx, "transformer.txt");
+	init_simulation(&ctx);
 	for (i = 0; i < 5*1000*1000; i++)
 	{
-		set_voltage_source("V1", 24.0*sin(2*3.14159265358979*50.0*t));
+		set_voltage_source(&ctx, "V1", 24.0*sin(2*3.14159265358979*50.0*t));
 		t += dt;
-		simulation_step();
-		printf("%zu %g\n", i, get_V(3) - get_V(2));
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 3) - get_V(&ctx, 2));
 	}
 	return 0;
 }
@@ -469,25 +473,24 @@ Program to control it:
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 
-void set_switches(int onoff)
+void set_switches(struct libsimul_ctx *ctx, int onoff)
 {
 	if (onoff)
 	{
-		set_switch_state("S1", 1);
-		set_switch_state("S2", 1);
-		set_switch_state("S3", 0);
-		set_switch_state("S4", 0);
+		set_switch_state(ctx, "S1", 1);
+		set_switch_state(ctx, "S2", 1);
+		set_switch_state(ctx, "S3", 0);
+		set_switch_state(ctx, "S4", 0);
 	}
 	else
 	{
-		set_switch_state("S1", 0);
-		set_switch_state("S2", 0);
-		set_switch_state("S3", 1);
-		set_switch_state("S4", 1);
+		set_switch_state(ctx, "S1", 0);
+		set_switch_state(ctx, "S2", 0);
+		set_switch_state(ctx, "S3", 1);
+		set_switch_state(ctx, "S4", 1);
 	}
-	recalc();
+	recalc(ctx);
 }
 
 int main(int argc, char **argv)
@@ -503,19 +506,21 @@ int main(int argc, char **argv)
 	double t = 0;
 	double ontime = 1e-5, offtime = 1e-5, V_out_ideal;
 	int onoff = 0;
-	read_file("inverterpwm.txt");
-	init_simulation();
-	set_switches(1);
+	struct libsimul_ctx ctx;
+	linsimul_init(&ctx, dt);
+	read_file(&ctx, "inverterpwm.txt");
+	init_simulation(&ctx);
+	set_switches(&ctx, 1);
 	cnt_remain = 1;
 	for (i = 0; i < 1000*1000; i++)
 	{
-		simulation_step();
+		simulation_step(&ctx);
 		t += dt;
-		printf("%zu %g\n", i, get_V(5)-get_V(3));
+		printf("%zu %g\n", i, get_V(&ctx, 5)-get_V(&ctx, 3));
 		cnt_remain--;
 		if (cnt_remain == 0 && onoff == 1)
 		{
-			set_switches(0);
+			set_switches(&tx, 0);
 			cnt_remain = offtime/dt;
 			onoff = 0;
 		}
@@ -528,7 +533,7 @@ int main(int argc, char **argv)
 			ontime = curduty/switch_f;
 			offtime = (1.0-curduty)/switch_f;
 			cnt_remain = ontime/dt;
-			set_switches(1);
+			set_switches(&ctx, 1);
 			onoff = 1;
 		}
 	}
@@ -592,7 +597,6 @@ Program to control it:
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 
 int main(int argc, char **argv)
 {
@@ -600,7 +604,7 @@ int main(int argc, char **argv)
 	int switch_state = 1;
 	int cnt_remain = 500;
 	struct libsimul_ctx ctx;
-	libsimul_init(&ctx, dt, diode_threshold);
+	libsimul_init(&ctx, dt);
 	read_file(&ctx, "forward.txt");
 	init_simulation(&ctx);
 	if (set_switch_state(&ctx, "S1", switch_state) != 0)
@@ -681,7 +685,6 @@ Program to control it:
 #include "libsimul.h"
 
 const double dt = 1e-7; // 100 ns
-const double diode_threshold = 0;
 
 int main(int argc, char **argv)
 {
@@ -689,7 +692,7 @@ int main(int argc, char **argv)
 	int switch_state = 1;
 	int cnt_remain = 500;
 	struct libsimul_ctx ctx;
-	libsimul_init(&ctx, dt, diode_threshold);
+	libsimul_init(&ctx, dt);
 	read_file(&ctx, "flyback.txt");
 	init_simulation(&ctx);
 	if (set_switch_state(&ctx, "S1", switch_state) != 0)
