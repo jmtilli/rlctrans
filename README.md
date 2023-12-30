@@ -98,7 +98,7 @@ If recalculation loop happens, it generally means diodes don't reach a stable
 state. It may happen in full wave bridge rectifiers. Adding a high-value
 resistor across two diodes may help in this case, but adding only one resistor
 or four resistors may cause the recalculation loop again. Also the
-`diode_threshold` paramter for diodes which sets the threshold voltage after
+`diode_threshold` parameter for diodes which sets the threshold voltage after
 which switch state reverses, may be useful. Note this is different than voltage
 drop which is about 0.7 V for silicon P-N diodes. This threshold voltage should
 be very small, generally on the order of microvolts.
