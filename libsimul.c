@@ -1608,3 +1608,69 @@ void libsimul_free(struct libsimul_ctx *ctx)
 	free(ctx->G_ipiv);
 	libsimul_init(ctx, 0);
 }
+double get_resistor(struct libsimul_ctx *ctx, const char *rsname)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, rsname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Resistor %s not found\n", rsname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ != TYPE_RESISTOR)
+	{
+		fprintf(stderr, "Element %s not a resistor\n", rsname);
+		exit(1);
+	}
+	return ctx->elements_used[i]->R;
+}
+double get_inductor(struct libsimul_ctx *ctx, const char *indname)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, indname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Inductor %s not found\n", indname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ != TYPE_INDUCTOR)
+	{
+		fprintf(stderr, "Element %s not a inductor\n", indname);
+		exit(1);
+	}
+	return ctx->elements_used[i]->L;
+}
+double get_capacitor(struct libsimul_ctx *ctx, const char *capname)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, capname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Capacitor %s not found\n", capname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ != TYPE_CAPACITOR)
+	{
+		fprintf(stderr, "Element %s not a capacitor\n", capname);
+		exit(1);
+	}
+	return ctx->elements_used[i]->C;
+}
