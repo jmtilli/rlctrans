@@ -395,6 +395,93 @@ int main(int argc, char **argv)
 
 ![buck converter plot ramp-up to 50% duty cycle](plots/buckrampplot.png)
 
+### Physical modeling of buck converter
+
+A perfect control of buck converter is achieved by embedding a model of the
+physical system into the control algorithm. Netlist `buckgood.txt`:
+
+```
+1 0 V1 V=13.2 R=1e-3
+1 2 S1 R=1e-3
+0 2 D1 R=1e-3
+2 3 RRL1 R=1e9
+2 3 L1 L=300e-6 Iinit=0
+3 4 RL1 R=100e-3
+4 0 C1 C=2200e-6 R=1e-3 Vinit=0
+4 0 RL R=10
+```
+
+Source code:
+
+```
+#include <stdio.h>
+#include <math.h>
+#include "libsimul.h"
+
+const double dt = 1e-7; // 100 ns
+
+int main(int argc, char **argv)
+{
+	size_t i;
+	int switch_state = 1;
+	int cnt_remain = 500;
+	int cnt_on = 0;
+	struct libsimul_ctx ctx;
+	double C, L;
+	libsimul_init(&ctx, dt);
+	read_file(&ctx, "buckgood.txt");
+	init_simulation(&ctx);
+	L = get_inductor(&ctx, "L1");
+	C = get_capacitor(&ctx, "C1");
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
+	{
+		recalc(&ctx);
+	}
+	for (i = 0; i < 5*1000*1000; i++)
+	{
+		simulation_step(&ctx);
+		printf("%zu %g\n", i, get_V(&ctx, 4));
+		double I_ind = get_inductor_current(&ctx, "L1");
+		double V_out = get_V(&ctx, 4);
+		double V_new = sqrt(V_out*V_out + L/C*I_ind*I_ind);
+		cnt_remain--;
+		if (switch_state && V_new > 13.2*0.5*1.004)
+		{
+			cnt_on++;
+			cnt_remain = 0;
+		}
+		else if (switch_state)
+		{
+			cnt_on++;
+		}
+		if (cnt_remain == 0)
+		{
+			switch_state = !switch_state;
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
+			{
+				recalc(&ctx);
+			}
+			if (switch_state)
+			{
+				cnt_remain = 950;
+				cnt_on = 0;
+			}
+			else
+			{
+				// Constant frequency
+				cnt_remain = 1000 - cnt_on;
+			}
+		}
+	}
+	libsimul_free(&ctx);
+	return 0;
+}
+```
+
+Plot of perfectly controlled output:
+
+![buck converter plot with good control](plots/buckgoodplot.png)
+
 ### AC transformer
 
 Netlist transformer.txt:
