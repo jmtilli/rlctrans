@@ -642,33 +642,15 @@ Netlist forward.txt:
 
 ```
 1 0 VS V=24 R=1e-3
-1 2 T1 N=100 primary=1 Lbase=5e-7 Vmin=-100 Vmax=100 R=6e-3
-3 1 T1 N=120 primary=0 R=12e-3
-2 0 S1 R=1e-3
-0 3 D3 R=1e-3
-5 4 T1 N=50 primary=0 R=3e-3
-0 4 Rbypass R=1e10
-5 6 D1 R=1e-3
-4 6 D2 R=1e-3
-6 7 RRL1 R=1e10
-6 7 L1 L=1e-3
-7 8 RL1 R=10e-3
-8 4 C1 C=2200e-6 R=1e-3
-8 4 RL R=24
-```
-
-Alternative netlist for newer linear fast transformer model:
-
-```
-1 0 VS V=24 R=1e-3
 1 2 X1 N=100 primary=1 Lbase=5e-7 R=6e-3
-3 1 X1 N=120 primary=0 R=12e-3
+3 1 X1 N=50 primary=0 R=12e-3
 2 0 S1 R=1e-3
 0 3 D3 R=1e-3
-0 3 RRD3 R=1e10
+0 3 RRD3 R=1e5
 5 4 X1 N=50 primary=0 R=3e-3
 0 4 Rbypass R=1e10
 5 6 D1 R=1e-3
+5 6 RRD1 R=1e10
 4 6 D2 R=1e-3
 6 7 RRL1 R=1e10
 6 7 L1 L=1e-3
@@ -679,7 +661,10 @@ Alternative netlist for newer linear fast transformer model:
 
 Note the RRL1 which prevents isolation of node 6 and Rbypass which prevents
 isolation of transformer primary and secondary sides. Note also the RRD3 which
-is needed for the new transformer model to prevent recalculation loop.
+is needed for the new transformer model to prevent recalculation loop, and the
+RRD3 can't be `1e10` since the R-L circuit would have too short time constant,
+so a value of `1e5` is needed. Note also `RRD1` with high value that is needed
+for stabilizing the simulation.
 
 Program to control it:
 
