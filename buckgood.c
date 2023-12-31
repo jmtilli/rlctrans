@@ -22,7 +22,8 @@ int main(int argc, char **argv)
 	{
 		simulation_step(&ctx);
 		printf("%zu %g\n", i, get_V(&ctx, 4));
-		double I_ind = (get_V(&ctx, 3)-get_V(&ctx, 4))/100e-3;
+		//double I_ind = (get_V(&ctx, 3)-get_V(&ctx, 4))/100e-3;
+		double I_ind = get_inductor_current(&ctx, "L1");
 		double V_out = get_V(&ctx, 4);
 		const double C = 2200e-6;
 		const double L = 300e-6;
