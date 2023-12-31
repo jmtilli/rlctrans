@@ -3,10 +3,10 @@
 3 1 X1 N=50 primary=0 R=12e-3
 2 0 S1 R=1e-3
 0 3 D3 R=1e-3
-0 3 RRD3 R=1e5
+#0 3 RRD3 R=1e5
 5 4 X1 N=50 primary=0 R=3e-3
 0 4 Rbypass R=1e10
-5 6 D1 R=1e-3
+5 6 D1 R=1e-3 diode_threshold=1e-6
 5 6 RRD1 R=1e10
 4 6 D2 R=1e-3
 6 7 RRL1 R=1e10
