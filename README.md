@@ -179,6 +179,10 @@ smka
 
 ### Full-wave bridge rectifier
 
+Circuit schematic:
+
+![rectifier schematic](figs/rectifier.png)
+
 Netlist rectifier.txt:
 
 ```
@@ -235,6 +239,10 @@ Plot of output:
 ![rectifier plot](plots/rectifierplot.png)
 
 ### Buck converter controlled by constant 50% duty cycle:
+
+Circuit schematic:
+
+![buck schematic](figs/buck.png)
 
 Netlist buck.txt:
 
@@ -310,6 +318,10 @@ Plot of output:
 ![buck converter plot 50% duty cycle](plots/buckplot.png)
 
 ### Better ramp-up of buck converter
+
+Circuit schematic:
+
+![buck schematic](figs/buck.png)
 
 If we modify the netlist to have more resistance and different component
 values:
@@ -396,6 +408,10 @@ int main(int argc, char **argv)
 ![buck converter plot ramp-up to 50% duty cycle](plots/buckrampplot.png)
 
 ### Physical modeling of buck converter
+
+Circuit schematic:
+
+![buck schematic](figs/buck.png)
 
 A perfect control of buck converter is achieved by embedding a model of the
 physical system into the control algorithm. Netlist `buckgood.txt`:
@@ -484,6 +500,10 @@ Plot of perfectly controlled output:
 
 ### AC transformer
 
+Circuit schematic:
+
+![transformer schematic](figs/transformer.png)
+
 Netlist transformer.txt:
 
 ```
@@ -541,6 +561,10 @@ Plot of output:
 ![transformer plot](plots/transformerplot.png)
 
 ### True sine wave inverter
+
+Circuit schematic:
+
+![inverter schematic](figs/inverterpwm.png)
 
 Netlist inverterpwm.txt:
 
@@ -638,6 +662,10 @@ Plot of output:
 
 ### Forward converter
 
+Circuit schematic:
+
+![forward converter schematic](figs/forward.png)
+
 Netlist forward.txt:
 
 ```
@@ -723,6 +751,10 @@ converter has massive overshoot.
 
 ### Forward converter, better control
 
+Circuit schematic:
+
+![forward converter schematic](figs/forward.png)
+
 Program to control forward converter in a better manner:
 
 ```
@@ -797,6 +829,10 @@ Plot of output with better control:
 Now the control is perfect.
 
 ### Flyback converter
+
+Circuit schematic:
+
+![flyback converter schematic](figs/flyback.png)
 
 Netlist flyback.txt:
 
