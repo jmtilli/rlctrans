@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 		if (switch_state && V_new > 24*0.5*0.5*1.003)
 		{
 			cnt_on++;
-			printf("i %zu cnt_on %d\n", i, cnt_on);
+			//printf("i %zu cnt_on %d\n", i, cnt_on);
 			cnt_remain = 0;
 		}
 		else if (switch_state)
