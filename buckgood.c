@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 		}
 		else if (switch_state)
 		{
-			cnt_remain = 500;
+			cnt_on++;
 		}
 		if (cnt_remain == 0)
 		{
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 			}
 			if (switch_state)
 			{
-				cnt_remain = 500;
+				cnt_remain = 950;
 				cnt_on = 0;
 			}
 			else
