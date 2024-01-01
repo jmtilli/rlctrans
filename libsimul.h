@@ -108,6 +108,7 @@ double get_resistor(struct libsimul_ctx *ctx, const char *rsname);
 double get_inductor(struct libsimul_ctx *ctx, const char *indname);
 double get_capacitor(struct libsimul_ctx *ctx, const char *capname);
 double get_inductor_current(struct libsimul_ctx *ctx, const char *indname);
+double get_transformer_inductor(struct libsimul_ctx *ctx, const char *xfrname);
 double get_transformer_mag_current(struct libsimul_ctx *ctx, const char *xfrname);
 int set_switch_state(struct libsimul_ctx *ctx, const char *swname, int state);
 void mark_node_seen(struct libsimul_ctx *ctx, int n);
