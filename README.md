@@ -928,7 +928,7 @@ if needed.
 All of the material related to RLCTrans is licensed under the following MIT
 license:
 
-Copyright (c) 2023 Juha-Matti Tilli
+Copyright (c) 2023-2024 Juha-Matti Tilli
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
