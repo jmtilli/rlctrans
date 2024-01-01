@@ -645,6 +645,37 @@ double get_transformer_direct_dconst(struct libsimul_ctx *ctx, size_t i)
 	return V_1*ctx->dt/(el->Lbase*el->N*el->N);
 
 }
+double get_transformer_mag_current(struct libsimul_ctx *ctx, const char *xfrname)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, xfrname) == 0 && ctx->elements_used[i]->primary)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Transformer %s not found\n", xfrname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ == TYPE_TRANSFORMER_DIRECT)
+	{
+		return -ctx->elements_used[i]->transformer_direct_const;
+	}
+	else if (ctx->elements_used[i]->typ == TYPE_TRANSFORMER)
+	{
+		return ctx->elements_used[i]->cur_phi_single
+		       / ctx->elements_used[i]->Lbase
+		       / ctx->elements_used[i]->N;
+	}
+	else
+	{
+		fprintf(stderr, "Element %s not a transformer\n", xfrname);
+		exit(1);
+	}
+}
 void go_through_direct_transformers(struct libsimul_ctx *ctx)
 {
 	size_t i;
