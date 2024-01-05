@@ -63,9 +63,21 @@ int main(int argc, char **argv)
 				double E_ideal;
 				//last_V = V_out;
 				E_cap = 0.5*C*V_out*V_out;
+				if (V_out < 230*sqrt(2))
+				{
+					// Avoid current surge at ramp-up
+					E_cap = 0.5*C*230*230*2;
+				}
 				E_ideal = 0.5*C*V_tgt*V_tgt;
 				I_diff_single = (E_ideal-E_cap)*2*50.0/230.0;
-				I_ideal_rms_230 += I_diff_single/20.0;
+				if (V_out < 230*sqrt(2)*0.9)
+				{
+					I_diff_single = 0;
+				}
+				else
+				{
+					I_ideal_rms_230 += I_diff_single/20.0;
+				}
 				I_diff_single = 19.0/20.0*I_diff_single;
 			}
 			sign_last_nonzero = my_signum(V_input);
