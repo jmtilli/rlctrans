@@ -36,8 +36,8 @@ int main(int argc, char **argv)
 	libsimul_init(&ctx, dt);
 	read_file(&ctx, "pfcboost.txt");
 	init_simulation(&ctx);
-	//L = get_inductor(&ctx, "L2");
-	C = get_capacitor(&ctx, "C2");
+	//L = get_inductor(&ctx, "L1");
+	C = get_capacitor(&ctx, "C1");
 	if (set_switch_state(&ctx, "S1", switch_state) != 0)
 	{
 		recalc(&ctx);
@@ -49,8 +49,7 @@ int main(int argc, char **argv)
 		set_voltage_source(&ctx, "V1", V_input);
 		t += dt;
 		simulation_step(&ctx);
-		//double I_input = get_inductor_current(&ctx, "L1");
-		double I_ind = -get_inductor_current(&ctx, "L2");
+		double I_ind = -get_inductor_current(&ctx, "L1");
 		double V_rect = get_V(&ctx, 2) - get_V(&ctx, 3);
 		double V_out = get_V(&ctx, 6) - get_V(&ctx, 3);
 		printf("%zu %g (%d) %g %g %g\n", i, V_input, switch_state, V_out, V_rect, I_ind);

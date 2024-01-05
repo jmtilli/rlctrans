@@ -10,10 +10,10 @@
 3 0 D4 R=1e-3 diode_threshold=1e-6
 
 # Boost converter, in: 2,3; out: 6,3
-2 4 RRL2 R=1e5
-2 4 L2 L=10e-3
-4 5 RL2 R=60e-3
+2 4 RRL1 R=1e5
+2 4 L1 L=10e-3
+4 5 RL1 R=60e-3
 5 3 S1 R=1e-3
 5 6 D5 R=1e-3 diode_threshold=1e-6
-6 3 C2 C=47e-6 R=1e-3
+6 3 C1 C=47e-6 R=1e-3
 6 3 RL R=1000
