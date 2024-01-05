@@ -1019,6 +1019,161 @@ Plot of output:
 
 ![flyback converter plot with good control](plots/flybackgoodplot.png)
 
+### Active power factor correction (PFC) circuit based on boost converter
+
+Circuit schematic:
+
+![power factor correction circuit schematic](figs/pfcboost.png)
+
+Netlist pfcboost.txt:
+
+```
+# Sine voltage source, controlled from C code, initial value 0
+1 0 V1 V=0 R=1e-3
+
+# Full-wave rectifier, in:1,0; out:2,3
+1 2 D1 R=1e-3 diode_threshold=1e-6
+1 2 RD1 R=1e10
+0 2 D2 R=1e-3 diode_threshold=1e-6
+3 1 D3 R=1e-3 diode_threshold=1e-6
+3 1 RD3 R=1e10
+3 0 D4 R=1e-3 diode_threshold=1e-6
+
+# Boost converter, in: 2,3; out: 6,3
+2 4 RRL1 R=1e5
+2 4 L1 L=10e-3
+4 5 RL1 R=60e-3
+5 3 S1 R=1e-3
+5 6 D5 R=1e-3 diode_threshold=1e-6
+6 3 C1 C=47e-6 R=1e-3
+6 3 RL R=1000
+```
+
+Program to control it:
+
+```
+#include <stdio.h>
+#include <math.h>
+#include "libsimul.h"
+
+const double dt = 1e-7; // 100 ns
+
+static inline int my_signum(double d)
+{
+	if (d > 0)
+	{
+		return 1;
+	}
+	if (d < 0)
+	{
+		return -1;
+	}
+	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	size_t i;
+	double t = 0.0;
+	const double pi = 3.14159265358979;
+	int switch_state = 1;
+	int cnt_remain = 90;
+	int cnt_on = 0;
+	double I_ideal_rms_230 = 0.5;
+	double I_diff_single = 0.0;
+	int sign_last_nonzero = 0;
+	const double V_tgt = 230*sqrt(2)*1.2;
+	double C;
+	struct libsimul_ctx ctx;
+	libsimul_init(&ctx, dt);
+	read_file(&ctx, "pfcboost.txt");
+	init_simulation(&ctx);
+	C = get_capacitor(&ctx, "C1");
+	if (set_switch_state(&ctx, "S1", switch_state) != 0)
+	{
+		recalc(&ctx);
+	}
+	for (i = 0; i < 5*1000*1000; i++)
+	{
+		double V_input = 230*sqrt(2)*sin(2*pi*50*t);
+		double I_ideal = (I_ideal_rms_230+I_diff_single)*fabs(V_input)/230;
+		set_voltage_source(&ctx, "V1", V_input);
+		t += dt;
+		simulation_step(&ctx);
+		double I_ind = -get_inductor_current(&ctx, "L1");
+		double V_rect = get_V(&ctx, 2) - get_V(&ctx, 3);
+		double V_out = get_V(&ctx, 6) - get_V(&ctx, 3);
+		printf("%zu %g (%d) %g %g %g\n", i, V_input, switch_state, V_out, V_rect, I_ind);
+		if (my_signum(V_input) != 0)
+		{
+			if (sign_last_nonzero != my_signum(V_input))
+			{
+				double E_cap;
+				double E_ideal;
+				E_cap = 0.5*C*V_out*V_out;
+				if (V_out < 230*sqrt(2))
+				{
+					// Avoid current surge at ramp-up
+					E_cap = 0.5*C*230*230*2;
+				}
+				E_ideal = 0.5*C*V_tgt*V_tgt;
+				I_diff_single = (E_ideal-E_cap)*2*50.0/230.0;
+				if (V_out < 230*sqrt(2)*0.9)
+				{
+					I_diff_single = 0;
+				}
+				else
+				{
+					I_ideal_rms_230 += I_diff_single/20.0;
+				}
+				I_diff_single = 19.0/20.0*I_diff_single;
+			}
+			sign_last_nonzero = my_signum(V_input);
+		}
+		cnt_remain--;
+		if (switch_state && I_ind > I_ideal + 0.01)
+		{
+			cnt_remain = 0;
+		}
+		else if (!switch_state && I_ind < I_ideal - 0.01)
+		{
+			cnt_remain = 0;
+		}
+		if (switch_state)
+		{
+			cnt_on++;
+		}
+		if (cnt_remain == 0)
+		{
+			switch_state = !switch_state;
+			if (set_switch_state(&ctx, "S1", switch_state) != 0)
+			{
+				recalc(&ctx);
+			}
+			if (switch_state)
+			{
+				cnt_remain = 100000;
+				cnt_on = 0;
+			}
+			else
+			{
+				cnt_remain = 100000;
+			}
+		}
+	}
+	libsimul_free(&ctx);
+	return 0;
+}
+```
+
+Plot of output voltage:
+
+![output voltage of PFC circuit](plots/pfcboostvoltage.png)
+
+Plot of inductor current:
+
+![inductor current of PFC circuit](plots/pfcboostcurrent.png)
+
 ## License
 
 All of the material related to RLCTrans is licensed under the following MIT

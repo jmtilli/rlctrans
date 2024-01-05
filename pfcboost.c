@@ -27,16 +27,13 @@ int main(int argc, char **argv)
 	int cnt_on = 0;
 	double I_ideal_rms_230 = 0.5;
 	double I_diff_single = 0.0;
-	//double V_input_last = 0;
 	int sign_last_nonzero = 0;
-	//double last_V = 0;
 	const double V_tgt = 230*sqrt(2)*1.2;
-	double C;//, L;
+	double C;
 	struct libsimul_ctx ctx;
 	libsimul_init(&ctx, dt);
 	read_file(&ctx, "pfcboost.txt");
 	init_simulation(&ctx);
-	//L = get_inductor(&ctx, "L1");
 	C = get_capacitor(&ctx, "C1");
 	if (set_switch_state(&ctx, "S1", switch_state) != 0)
 	{
@@ -53,14 +50,12 @@ int main(int argc, char **argv)
 		double V_rect = get_V(&ctx, 2) - get_V(&ctx, 3);
 		double V_out = get_V(&ctx, 6) - get_V(&ctx, 3);
 		printf("%zu %g (%d) %g %g %g\n", i, V_input, switch_state, V_out, V_rect, I_ind);
-		//double V_new = sqrt(V_out*V_out + L/C*I_ind*I_ind);
 		if (my_signum(V_input) != 0)
 		{
 			if (sign_last_nonzero != my_signum(V_input))
 			{
 				double E_cap;
 				double E_ideal;
-				//last_V = V_out;
 				E_cap = 0.5*C*V_out*V_out;
 				if (V_out < 230*sqrt(2))
 				{
@@ -81,7 +76,6 @@ int main(int argc, char **argv)
 			}
 			sign_last_nonzero = my_signum(V_input);
 		}
-		//V_input_last = V_input;
 		cnt_remain--;
 		if (switch_state && I_ind > I_ideal + 0.01)
 		{
@@ -91,13 +85,6 @@ int main(int argc, char **argv)
 		{
 			cnt_remain = 0;
 		}
-#if 0
-		if (switch_state && V_new > 400)
-		{
-			//printf("i %zu cnt_on %d\n", i, cnt_on);
-			cnt_remain = 0;
-		}
-#endif
 		if (switch_state)
 		{
 			cnt_on++;
@@ -111,15 +98,12 @@ int main(int argc, char **argv)
 			}
 			if (switch_state)
 			{
-				cnt_remain = 90;
+				cnt_remain = 100000;
 				cnt_on = 0;
-				//printf("Cnt_remain set to %d\n", cnt_remain);
 			}
 			else
 			{
-				// Constant frequency
-				cnt_remain = 100 - cnt_on;
-				//printf("cnt_remain set to %d\n", cnt_remain);
+				cnt_remain = 100000;
 			}
 		}
 	}
