@@ -22,6 +22,7 @@ int main(int argc, char **argv)
 	size_t i;
 	double t = 0.0;
 	const double pi = 3.14159265358979;
+	const double f_tgt = 50.0;
 	double Vrms = 230;
 	double Vrms_accumulator = 0;
 	int Vrms_cnt = 0;
@@ -70,7 +71,7 @@ int main(int argc, char **argv)
 					E_cap = 0.5*C*230*230*2;
 				}
 				E_ideal = 0.5*C*V_tgt*V_tgt;
-				if (Vrms_cnt > 10 && cycle_cnt >= 2)
+				if (Vrms_cnt > 0.5/(2*f_tgt)/dt && cycle_cnt >= 2)
 				{
 					Vrms = sqrt(Vrms_accumulator/Vrms_cnt);
 					//fprintf(stderr, "Vrms: %g\n", Vrms);
@@ -85,7 +86,7 @@ int main(int argc, char **argv)
 						Vrms = 230*1.1;
 					}
 				}
-				I_diff_single = (E_ideal-E_cap)*2*50.0/Vrms;
+				I_diff_single = (E_ideal-E_cap)*2*f_tgt/Vrms;
 				if (V_out < 230*sqrt(2)*0.9 || cycle_cnt < 2)
 				{
 					I_diff_single = 0;
