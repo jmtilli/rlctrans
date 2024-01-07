@@ -12,9 +12,11 @@ int main(int argc, char **argv)
 	int cnt_on = 0;
 	struct libsimul_ctx ctx;
 	double C, L, R;
+	double last_I_xfr = 0;
+	const double V_tgt = 60;
 	const char *xformer = "X1";
 	libsimul_init(&ctx, dt);
-	read_file(&ctx, "flyback.txt");
+	read_file(&ctx, "flybackgood.txt");
 	init_simulation(&ctx);
 	L = get_transformer_inductor(&ctx, xformer);
 	C = get_capacitor(&ctx, "C1");
@@ -29,11 +31,12 @@ int main(int argc, char **argv)
 		simulation_step(&ctx);
 		double I_xfr = get_transformer_mag_current(&ctx, xformer);
 		double V_out = get_V(&ctx, 5) - get_V(&ctx, 3);
-		double E_switch = 60.0*60.0/R*1e-7*1000;
-		double V_new = sqrt(V_out*V_out + L/C*I_xfr*I_xfr - 2*E_switch/C);
+		double E_switch = V_tgt*V_tgt/R*1e-7*1000;
+		double V_new = sqrt(V_out*V_out + L/C*I_xfr*I_xfr - L/C*last_I_xfr*last_I_xfr - 2*E_switch/C);
+		//double V_new = sqrt(V_out*V_out + L/C*I_xfr*I_xfr - 2*E_switch/C);
 		printf("%zu %g %g\n", i, V_out, I_xfr);
 		cnt_remain--;
-		if (switch_state && (V_new > 60*1.03 || I_xfr > 15))
+		if (switch_state && (V_new > V_tgt || I_xfr > 15))
 		{
 			cnt_on++;
 			cnt_remain = 0;
@@ -54,6 +57,7 @@ int main(int argc, char **argv)
 			}
 			if (switch_state)
 			{
+				last_I_xfr = 0.95*last_I_xfr+0.05*I_xfr;
 				cnt_remain = 950;
 				cnt_on = 0;
 			}
