@@ -2,7 +2,7 @@
 #include <math.h>
 #include "libsimul.h"
 
-const double dt = 1e-7; // 100 ns
+const double dt = 2e-8; // 100 ns
 
 int main(int argc, char **argv)
 {
@@ -57,7 +57,8 @@ int main(int argc, char **argv)
 			}
 			if (switch_state)
 			{
-				last_I_xfr = 0.95*last_I_xfr+0.05*I_xfr;
+				last_I_xfr = 0.99*last_I_xfr+0.01*I_xfr;
+				//fprintf(stderr, "last_I_xfr %g\n", last_I_xfr);
 				cnt_remain = 950;
 				cnt_on = 0;
 			}
