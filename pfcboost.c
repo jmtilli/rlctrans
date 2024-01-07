@@ -22,12 +22,16 @@ int main(int argc, char **argv)
 	size_t i;
 	double t = 0.0;
 	const double pi = 3.14159265358979;
+	double Vrms = 230;
+	double Vrms_accumulator = 0;
+	int Vrms_cnt = 0;
 	int switch_state = 1;
 	int cnt_remain = 90;
 	int cnt_on = 0;
 	double I_ideal_rms_230 = 0.5;
 	double I_diff_single = 0.0;
 	int sign_last_nonzero = 0;
+	int cycle_cnt = 0;
 	const double V_tgt = 230*sqrt(2)*1.2;
 	double C;
 	struct libsimul_ctx ctx;
@@ -42,7 +46,9 @@ int main(int argc, char **argv)
 	for (i = 0; i < 5*1000*1000; i++)
 	{
 		double V_input = 230*sqrt(2)*sin(2*pi*50*t);
-		double I_ideal = (I_ideal_rms_230+I_diff_single)*fabs(V_input)/230;
+		Vrms_accumulator += V_input*V_input;
+		Vrms_cnt++;
+		double I_ideal = (I_ideal_rms_230+I_diff_single)*fabs(V_input)/Vrms;
 		set_voltage_source(&ctx, "V1", V_input);
 		t += dt;
 		simulation_step(&ctx);
@@ -56,6 +62,7 @@ int main(int argc, char **argv)
 			{
 				double E_cap;
 				double E_ideal;
+				cycle_cnt++;
 				E_cap = 0.5*C*V_out*V_out;
 				if (V_out < 230*sqrt(2))
 				{
@@ -63,8 +70,23 @@ int main(int argc, char **argv)
 					E_cap = 0.5*C*230*230*2;
 				}
 				E_ideal = 0.5*C*V_tgt*V_tgt;
-				I_diff_single = (E_ideal-E_cap)*2*50.0/230.0;
-				if (V_out < 230*sqrt(2)*0.9)
+				if (Vrms_cnt > 10 && cycle_cnt >= 2)
+				{
+					Vrms = sqrt(Vrms_accumulator/Vrms_cnt);
+					//fprintf(stderr, "Vrms: %g\n", Vrms);
+					Vrms_accumulator = 0;
+					Vrms_cnt = 0;
+					if (Vrms < 230*0.9)
+					{
+						Vrms = 230*0.9;
+					}
+					else if (Vrms > 230*1.1)
+					{
+						Vrms = 230*1.1;
+					}
+				}
+				I_diff_single = (E_ideal-E_cap)*2*50.0/Vrms;
+				if (V_out < 230*sqrt(2)*0.9 || cycle_cnt < 2)
 				{
 					I_diff_single = 0;
 				}
