@@ -2,7 +2,7 @@
 #include <math.h>
 #include "libsimul.h"
 
-const double dt = 2e-8; // 100 ns
+const double dt = 2e-8; // 20 ns
 
 int main(int argc, char **argv)
 {
