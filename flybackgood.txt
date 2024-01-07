@@ -6,5 +6,5 @@
 3 4 X1 N=50 primary=0 R=3e-3
 0 3 Rbypass R=1e10
 4 5 D1 R=1e-3
-5 3 C1 C=2200e-6 R=1e-3
+5 3 C1 C=470e-6 R=1e-3
 5 3 RL R=24
