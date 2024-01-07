@@ -31,7 +31,7 @@ int main(int argc, char **argv)
 		simulation_step(&ctx);
 		double I_xfr = get_transformer_mag_current(&ctx, xformer);
 		double V_out = get_V(&ctx, 5) - get_V(&ctx, 3);
-		double E_switch = V_tgt*V_tgt/R*1e-7*1000;
+		double E_switch = V_tgt*V_tgt/R*dt*1000;
 		double V_new = sqrt(V_out*V_out + L/C*I_xfr*I_xfr - L/C*last_I_xfr*last_I_xfr - 2*E_switch/C);
 		//double V_new = sqrt(V_out*V_out + L/C*I_xfr*I_xfr - 2*E_switch/C);
 		printf("%zu %g %g\n", i, V_out, I_xfr);
