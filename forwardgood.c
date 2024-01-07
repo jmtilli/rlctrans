@@ -2,7 +2,7 @@
 #include <math.h>
 #include "libsimul.h"
 
-const double dt = 1e-7; // 100 ns
+const double dt = 2e-8; // 100 ns
 
 int main(int argc, char **argv)
 {
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 		V_new = sqrt(V_out*V_out + L/C*I_ind*I_ind);
 		printf("%zu %g\n", i, get_V(&ctx, 7) - get_V(&ctx, 4));
 		cnt_remain--;
-		if (switch_state && V_new > 24*0.5*0.5*1.003)
+		if (switch_state && V_new > 24*0.5*0.5*1.001)
 		{
 			cnt_on++;
 			//printf("i %zu cnt_on %d\n", i, cnt_on);
