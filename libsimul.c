@@ -1,7 +1,15 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#if 0
 #include <lapack.h>
+#else
+#define lapack_int int
+#define LAPACK_dgetrf dgetrf_
+void LAPACK_dgetrf(const lapack_int*, const lapack_int*, double*, const lapack_int*, lapack_int*, lapack_int*);
+#define LAPACK_dgetrs dgetrs_
+void LAPACK_dgetrs(const char*, const lapack_int*, const lapack_int*, const double*, const lapack_int*, const lapack_int*, double*, const lapack_int*, lapack_int*);
+#endif
 #include <math.h>
 #include <stdint.h>
 #include "libsimul.h"
