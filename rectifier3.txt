@@ -1,0 +1,12 @@
+1 0 V1 V=0 R=1e-3
+2 0 V2 V=0 R=1e-3
+3 0 V3 V=0 R=1e-3
+1 4 D1 R=1e-3 diode_threshold=1e-6
+1 4 R1 R=1e10
+2 4 D2 R=1e-3 diode_threshold=1e-6
+3 4 D3 R=1e-3 diode_threshold=1e-6
+5 1 D4 R=1e-3 diode_threshold=1e-6
+5 2 D5 R=1e-3 diode_threshold=1e-6
+5 3 D6 R=1e-3 diode_threshold=1e-6
+4 5 C1 C=100e-6 R=1e-3 Vinit=0
+4 5 RL R=1000
