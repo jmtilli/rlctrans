@@ -101,7 +101,9 @@ struct libsimul_ctx {
 void libsimul_init(struct libsimul_ctx *ctx, double dt);
 void libsimul_free(struct libsimul_ctx *ctx);
 
+double get_voltage_source_current(struct libsimul_ctx *ctx, const char *vsname);
 void set_voltage_source(struct libsimul_ctx *ctx, const char *vsname, double V);
+void set_capacitor_voltage(struct libsimul_ctx *ctx, const char *capname, double V);
 int set_resistor(struct libsimul_ctx *ctx, const char *rsname, double R);
 int set_inductor(struct libsimul_ctx *ctx, const char *indname, double L);
 double get_resistor(struct libsimul_ctx *ctx, const char *rsname);

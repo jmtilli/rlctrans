@@ -1746,3 +1746,60 @@ double get_capacitor(struct libsimul_ctx *ctx, const char *capname)
 	}
 	return ctx->elements_used[i]->C;
 }
+double get_voltage_source_current(struct libsimul_ctx *ctx, const char *vsname)
+{
+	size_t i;
+	double V1;
+	double V2;
+	double R;
+	double V;
+	double V_ext;
+	double V_diff;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, vsname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Voltage source %s not found\n", vsname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ != TYPE_VOLTAGE)
+	{
+		fprintf(stderr, "Element %s not a voltage source\n", vsname);
+		exit(1);
+	}
+	V1 = get_V(ctx, ctx->elements_used[i]->n1);
+	V2 = get_V(ctx, ctx->elements_used[i]->n2);
+	R = ctx->elements_used[i]->R;
+	V = ctx->elements_used[i]->V;
+	V_ext = V1 - V2;
+	V_diff = V - V_ext;
+	//printf("V1 %g V2 %g R %g V %g V_ext %g V_diff %g I %g\n", V1, V2, R, V, V_ext, V_diff, V_diff/R);
+	return V_diff/R;
+}
+void set_capacitor_voltage(struct libsimul_ctx *ctx, const char *capname, double V)
+{
+	size_t i;
+	for (i = 0; i < ctx->elements_used_sz; i++)
+	{
+		if (strcmp(ctx->elements_used[i]->name, capname) == 0)
+		{
+			break;
+		}
+	}
+	if (i == ctx->elements_used_sz)
+	{
+		fprintf(stderr, "Capacitor %s not found\n", capname);
+		exit(1);
+	}
+	if (ctx->elements_used[i]->typ != TYPE_CAPACITOR)
+	{
+		fprintf(stderr, "Element %s not a capacitor\n", capname);
+		exit(1);
+	}
+	ctx->elements_used[i]->I_src = V/ctx->elements_used[i]->R;
+}
