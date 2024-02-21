@@ -502,7 +502,7 @@ double get_V(struct libsimul_ctx *ctx, int node)
 
 // Return: 0 OK
 // Return: -EAGAIN have to do simulation again
-int go_through_diodes(struct libsimul_ctx *ctx)
+int go_through_diodes(struct libsimul_ctx *ctx, int recalc_loop)
 {
 	const size_t elements_used_sz = ctx->elements_used_sz;
 	size_t i;
@@ -513,6 +513,15 @@ int go_through_diodes(struct libsimul_ctx *ctx)
 		struct element *el = ctx->elements_used[i];
 		if (el->typ != TYPE_DIODE)
 		{
+			continue;
+		}
+		if (recalc_loop && el->on_recalc != -1)
+		{
+			if (el->current_switch_state_is_closed != el->on_recalc)
+			{
+				ret = ERR_HAVE_TO_SIMULATE_AGAIN_DIODE;
+			}
+			el->current_switch_state_is_closed = el->on_recalc;
 			continue;
 		}
 		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
@@ -827,10 +836,10 @@ int double_cmp(double a, double b)
 	return 0;
 }
 
-int go_through_all(struct libsimul_ctx *ctx)
+int go_through_all(struct libsimul_ctx *ctx, int recalc_loop)
 {
 	int ret = 0;
-	ret = go_through_diodes(ctx);
+	ret = go_through_diodes(ctx, recalc_loop);
 	if (ret != 0)
 	{
 		return ret;
@@ -1025,7 +1034,8 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	double Vmax,
 	double Lbase,
 	int primary,
-	double diode_threshold)
+	double diode_threshold,
+	int on_recalc)
 {
 	size_t i;
 	struct element *el;
@@ -1103,6 +1113,7 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	el->transformer_direct_const = 0;
 	el->current_switch_state_is_closed = 1;
 	el->diode_threshold = diode_threshold;
+	el->on_recalc = on_recalc;
 	if (typ == TYPE_VOLTAGE)
 	{
 		el->I_src = V/R;
@@ -1238,6 +1249,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 		double Vmin = 0;
 		double Vmax = 0;
 		int primary = 0;
+		int on_recalc = -1;
 		double Lbase = 0;
 		double diode_threshold = 0;
 		ret = getline_strip_comment(f, &line, &linesz);
@@ -1529,6 +1541,22 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 					exit(1);
 				}
 			}
+			else if (strcmp(more, "on_recalc") == 0)
+			{
+				long on_recalc_l;
+				if (typ != TYPE_DIODE)
+				{
+					fprintf(stderr, "Only diodes have on_recalc\n");
+					exit(1);
+				}
+				on_recalc_l = strtol(val, &endptr, 10);
+				if (on_recalc_l != 0 && on_recalc_l != 1)
+				{
+					fprintf(stderr, "Invalid on_recalc: %d\n", on_recalc);
+					exit(1);
+				}
+				on_recalc = on_recalc_l;
+			}
 			else
 			{
 				fprintf(stderr, "Invalid parameter: %s\n", more);
@@ -1587,7 +1615,8 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			Vmax,
 			Lbase,
 			primary,
-			diode_threshold);
+			diode_threshold,
+			on_recalc);
 	}
 	fclose(f);
 	free(line);
@@ -1624,16 +1653,18 @@ void simulation_step(struct libsimul_ctx *ctx)
 {
 	size_t recalccnt = 0;
 	int status;
+	int recalc_loop = 0;
 	form_isrc_vector(ctx);
 	calc_V(ctx);
-	while ((status = go_through_all(ctx)) != 0)
+	while ((status = go_through_all(ctx, recalc_loop)) != 0)
 	{
 		//fprintf(stderr, "Recalc\n");
 		recalccnt++;
 		if (recalccnt == 1024)
 		{
-			fprintf(stderr, "Recalc loop\n");
-			exit(1);
+			//fprintf(stderr, "Recalc loop\n");
+			recalc_loop = 1;
+			break;
 		}
 		if (status != ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER)
 		{
@@ -1642,6 +1673,26 @@ void simulation_step(struct libsimul_ctx *ctx)
 		}
 		form_isrc_vector(ctx);
 		calc_V(ctx);
+	}
+	if (recalc_loop)
+	{
+		while ((status = go_through_all(ctx, recalc_loop)) != 0)
+		{
+			//fprintf(stderr, "Recalc\n");
+			recalccnt++;
+			if (recalccnt == 1024)
+			{
+				fprintf(stderr, "Recalc loop, can't handle\n");
+				exit(1);
+			}
+			if (status != ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER)
+			{
+				form_g_matrix(ctx);
+				calc_lu(ctx);
+			}
+			form_isrc_vector(ctx);
+			calc_V(ctx);
+		}
 	}
 }
 

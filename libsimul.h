@@ -57,6 +57,7 @@ struct element {
 	double transformer_direct_denom;
 	double transformer_direct_const;
 	double diode_threshold;
+	int on_recalc;
 };
 
 enum xformerstatetype {
@@ -120,11 +121,11 @@ void calc_lu(struct libsimul_ctx *ctx);
 void calc_V(struct libsimul_ctx *ctx);
 void form_isrc_vector(struct libsimul_ctx *ctx);
 double get_V(struct libsimul_ctx *ctx, int node);
-int go_through_diodes(struct libsimul_ctx *ctx);
+int go_through_diodes(struct libsimul_ctx *ctx, int recalc_loop);
 int signum(double d);
 void go_through_inductors(struct libsimul_ctx *ctx);
 void go_through_capacitors(struct libsimul_ctx *ctx);
-int go_through_all(struct libsimul_ctx *ctx);
+int go_through_all(struct libsimul_ctx *ctx, int recalc_loop);
 int add_element_used(
 	struct libsimul_ctx *ctx,
 	const char *element, int n1, int n2, enum element_type typ,
@@ -139,7 +140,8 @@ int add_element_used(
 	double Vmax,
 	double Lbase,
 	int primary,
-	double diode_threshold);
+	double diode_threshold,
+	int on_recalc);
 void read_file(struct libsimul_ctx *ctx, const char *fname);
 void init_simulation(struct libsimul_ctx *ctx);
 void recalc(struct libsimul_ctx *ctx);
