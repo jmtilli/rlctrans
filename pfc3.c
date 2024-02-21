@@ -35,13 +35,6 @@ int main(int argc, char **argv)
 	int cnt_remain1 = 90, cnt_remain2 = 90, cnt_remain3 = 90;
 	int cnt_on1 = 0, cnt_on2 = 0, cnt_on3 = 0;
 	int Vrms_cnt31 = 0;
-	double I_ideal_rms_230 = 0.5;
-	double I_ideal_rms_230_12 = 0.5;
-	double I_ideal_rms_230_23 = 0.5;
-	double I_ideal_rms_230_31 = 0.5;
-	double I_diff_single12 = 0.0;
-	double I_diff_single23 = 0.0;
-	double I_diff_single31 = 0.0;
 	int sw1 = 1, sw2 = 1, sw3 = 1;
 	int sign_last_nonzero12 = 0, sign_last_nonzero23 = 0;
 	int sign_last_nonzero31 = 0;
@@ -70,15 +63,13 @@ int main(int argc, char **argv)
 		Vrms_cnt23++;
 		Vrms_accumulator31 += (V3-V1)*(V3-V1);
 		Vrms_cnt31++;
-		double I_ideal12 = (I_ideal_rms_230_12 + I_diff_single12)*fabs(V1-V2)/Vrms12;
-		double I_ideal23 = (I_ideal_rms_230_23 + I_diff_single23)*fabs(V2-V3)/Vrms23;
-		double I_ideal31 = (I_ideal_rms_230_31 + I_diff_single31)*fabs(V3-V1)/Vrms31;
-#if 0
-		// The previous calculation oscillates
-		I_ideal12 = 0.5*fabs(V1-V2)/Vrms12;
-		I_ideal23 = 0.5*fabs(V2-V3)/Vrms23;
-		I_ideal31 = 0.5*fabs(V3-V1)/Vrms31;
-#endif
+		double R = get_resistor(&ctx, "RL");
+		double V_out = get_V(&ctx, 10) - get_V(&ctx, 11);
+		double I_R = V_out/R;
+		double I_diff = C*(V_tgt-V_out)*2*f_tgt;
+		double I_ideal12 = (I_R + I_diff)*fabs(V1-V2)/Vrms12;
+		double I_ideal23 = (I_R + I_diff)*fabs(V2-V3)/Vrms23;
+		double I_ideal31 = (I_R + I_diff)*fabs(V3-V1)/Vrms31;
 		// x = 0..pi/3: V1 V2 positive V3 negative
 		// x = pi/3..2*pi/3: V1 positive V2 V3 negative
 		// x = 2*pi/3 .. 3*pi/3: V1 V3 positive V2 negative
@@ -88,18 +79,6 @@ int main(int argc, char **argv)
 		set_voltage_source(&ctx, "V1", V1);
 		set_voltage_source(&ctx, "V2", V2);
 		set_voltage_source(&ctx, "V3", V3);
-#if 0
-		double RL = 1000.0*(1+0.3*sin(2*3.14159265358979*75.0*t));
-		//RL = 1000.2;
-		//RL = 1000.141371669359;
-		RL = 1000.14;
-		if (set_resistor(&ctx, "RL", RL) != 0)
-		{
-			//printf("Before setresistor recalc %.17g\n", RL);
-			recalc(&ctx);
-			//printf("After setresistor recalc\n");
-		}
-#endif
 		t += dt;
 		simulation_step(&ctx);
 		IV1 = get_voltage_source_current(&ctx, "V1");
@@ -108,25 +87,13 @@ int main(int argc, char **argv)
 		double IL1 = (get_inductor_current(&ctx, "L1b")-get_inductor_current(&ctx, "L1a"))/2;
 		double IL2 = (get_inductor_current(&ctx, "L2b")-get_inductor_current(&ctx, "L2a"))/2;
 		double IL3 = (get_inductor_current(&ctx, "L3b")-get_inductor_current(&ctx, "L3a"))/2;
-		//double V_rect12 = get_V(&ctx, 4) - get_V(&ctx, 5);
-		//double V_rect23 = get_V(&ctx, 12) - get_V(&ctx, 13);
-		//double V_rect31 = get_V(&ctx, 18) - get_V(&ctx, 19);
-		double V_out = get_V(&ctx, 10) - get_V(&ctx, 11);
+		V_out = get_V(&ctx, 10) - get_V(&ctx, 11);
 		printf("%zu %g %g %g %g %g %g %g\n", i, V_out, IV1, IL1, IV2, IL2, IV3, IL3);
 		if (my_signum(V1-V2) != 0)
 		{
 			if (sign_last_nonzero12 != my_signum(V1-V2))
 			{
-				double E_cap;
-				double E_ideal;
 				cycle_cnt12++;
-				E_cap = 0.5*C*V_out*V_out;
-				if (V_out < 230*sqrt(2)*sqrt(3))
-				{
-					// Avoid current surge at ramp-up
-					E_cap = 0.5*C*230*230*2*3;
-				}
-				E_ideal = 0.5*C*V_tgt*V_tgt;
 				if (Vrms_cnt12 > 0.5/(2*f_tgt)/dt && cycle_cnt12 >= 2)
 				{
 					Vrms12 = sqrt(Vrms_accumulator12/Vrms_cnt12);
@@ -141,17 +108,6 @@ int main(int argc, char **argv)
 						Vrms12 = 230*sqrt(3)*1.1;
 					}
 				}
-				I_diff_single12 = (E_ideal-E_cap)*2*f_tgt/Vrms12;
-				if (V_out < 230*sqrt(2)*sqrt(3)*0.9 || cycle_cnt12 < 2)
-				{
-					I_diff_single12 = 0;
-				}
-				else
-				{
-					I_ideal_rms_230 += I_diff_single12/20.0;
-				}
-				fprintf(stderr, "%g %g\n", I_ideal_rms_230, (I_ideal_rms_230+I_diff_single12));
-				I_ideal_rms_230_12 = I_ideal_rms_230;
 				if (0 && rand() % 5 == 0)
 				{
 					if (set_resistor(&ctx, "RL", 500 + rand()%1000) != 0)
@@ -166,16 +122,7 @@ int main(int argc, char **argv)
 		{
 			if (sign_last_nonzero23 != my_signum(V2-V3))
 			{
-				double E_cap;
-				double E_ideal;
 				cycle_cnt23++;
-				E_cap = 0.5*C*V_out*V_out;
-				if (V_out < 230*sqrt(2)*sqrt(3))
-				{
-					// Avoid current surge at ramp-up
-					E_cap = 0.5*C*230*230*2*3;
-				}
-				E_ideal = 0.5*C*V_tgt*V_tgt;
 				if (Vrms_cnt23 > 0.5/(2*f_tgt)/dt && cycle_cnt23 >= 2)
 				{
 					Vrms23 = sqrt(Vrms_accumulator23/Vrms_cnt23);
@@ -190,17 +137,6 @@ int main(int argc, char **argv)
 						Vrms23 = 230*sqrt(3)*1.1;
 					}
 				}
-				I_diff_single23 = (E_ideal-E_cap)*2*f_tgt/Vrms23;
-				if (V_out < 230*sqrt(2)*sqrt(3)*0.9 || cycle_cnt23 < 2)
-				{
-					I_diff_single23 = 0;
-				}
-				else
-				{
-					I_ideal_rms_230 += I_diff_single23/20.0;
-				}
-				fprintf(stderr, "%g %g\n", I_ideal_rms_230, (I_ideal_rms_230+I_diff_single23));
-				I_ideal_rms_230_23 = I_ideal_rms_230;
 				if (0 && rand() % 5 == 0)
 				{
 					if (set_resistor(&ctx, "RL", 500 + rand()%1000) != 0)
@@ -215,16 +151,7 @@ int main(int argc, char **argv)
 		{
 			if (sign_last_nonzero31 != my_signum(V3-V1))
 			{
-				double E_cap;
-				double E_ideal;
 				cycle_cnt31++;
-				E_cap = 0.5*C*V_out*V_out;
-				if (V_out < 230*sqrt(2)*sqrt(3))
-				{
-					// Avoid current surge at ramp-up
-					E_cap = 0.5*C*230*230*2*3;
-				}
-				E_ideal = 0.5*C*V_tgt*V_tgt;
 				if (Vrms_cnt31 > 0.5/(2*f_tgt)/dt && cycle_cnt31 >= 2)
 				{
 					Vrms31 = sqrt(Vrms_accumulator31/Vrms_cnt31);
@@ -239,17 +166,6 @@ int main(int argc, char **argv)
 						Vrms31 = 230*sqrt(3)*1.1;
 					}
 				}
-				I_diff_single31 = (E_ideal-E_cap)*2*f_tgt/Vrms31;
-				if (V_out < 230*sqrt(2)*sqrt(3)*0.9 || cycle_cnt31 < 2)
-				{
-					I_diff_single31 = 0;
-				}
-				else
-				{
-					I_ideal_rms_230 += I_diff_single31/20.0;
-				}
-				fprintf(stderr, "%g %g\n", I_ideal_rms_230, (I_ideal_rms_230+I_diff_single31));
-				I_ideal_rms_230_31 = I_ideal_rms_230;
 				if (0 && rand() % 5 == 0)
 				{
 					if (set_resistor(&ctx, "RL", 500 + rand()%1000) != 0)
