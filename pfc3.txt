@@ -12,10 +12,12 @@
 5 2 D4 R=1e-3 diode_threshold=1e-6
 
 # Boost converter, in: 4,5, out: 10,11
+4 10 D5b R=1e-3 diode_threshold=1e-2 on_recalc=0
 4 6 L1a L=5e-3
 4 6 RRL1a R=0.5e5
 6 7 RL1a R=30e-3
 5 8 L1b L=5e-3
+11 5 D6b R=1e-3 diode_threshold=1e-2 on_recalc=0
 5 8 RRL1b R=0.5e5
 8 9 RL1b R=30e-3
 7 9 S1 R=1e-3
@@ -32,9 +34,11 @@
 13 3 D10 R=1e-3 diode_threshold=1e-6
 
 # Boost converter, in: 12,13, out: 10,11
+12 10 D11b R=1e-3 diode_threshold=1e-2 on_recalc=0
 12 14 L2a L=5e-3
 12 14 RRL2a R=0.5e5
 14 15 RL2a R=30e-3
+11 13 D12b R=1e-3 diode_threshold=1e-2 on_recalc=0
 13 16 L2b L=5e-3
 13 16 RRL2b R=0.5e5
 16 17 RL2b R=30e-3
@@ -52,9 +56,11 @@
 19 1 D16 R=1e-3 diode_threshold=1e-6
 
 # Boost converter, in: 18,19, out: 10,11
+18 10 D17b R=1e-3 diode_threshold=1e-2 on_recalc=0
 18 20 L3a L=5e-3
 18 20 RRL3a R=0.5e5
 20 21 RL3a R=30e-3
+11 19 D18b R=1e-3 diode_threshold=1e-2 on_recalc=0
 19 22 L3b L=5e-3
 19 22 RRL3b R=0.5e5
 22 23 RL3b R=30e-3
