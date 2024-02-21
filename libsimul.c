@@ -231,7 +231,11 @@ int set_switch_state(struct libsimul_ctx *ctx, const char *swname, int state)
 		if (ctx->elements_used[i]->typ == TYPE_DIODE)
 		{
 			// FIXME spooky...
+			// This seems to cause more problems than it solves.
+			// At least pfc3 is negatively affected.
+#if 0
 			ctx->elements_used[i]->current_switch_state_is_closed = 1;
+#endif
 		}
 	}
 	return ERR_HAVE_TO_SIMULATE_AGAIN;
