@@ -24,6 +24,11 @@ void set_switches(struct libsimul_ctx *ctx, int phase, int onoff)
 		S1 = "S5";
 		S2 = "S6";
 	}
+	else if (phase == 0)
+	{
+		S1 = "S7";
+		S2 = "S8";
+	}
 	else
 	{
 		abort();
@@ -44,6 +49,7 @@ void set_switches(struct libsimul_ctx *ctx, int phase, int onoff)
 int main(int argc, char **argv)
 {
 	size_t i;
+	int cnt_remain0 = 500;
 	int cnt_remain1 = 500;
 	int cnt_remain2 = 500;
 	int cnt_remain3 = 500;
@@ -54,17 +60,20 @@ int main(int argc, char **argv)
 	const double V_sine = 325.27;
 	const double pi = 3.14159265358979;
 	double t = 0;
+	double ontime0 = 1e-5, offtime0 = 1e-5;
 	double ontime1 = 1e-5, offtime1 = 1e-5, V_out_ideal;
 	double ontime2 = 1e-5, offtime2 = 1e-5;
 	double ontime3 = 1e-5, offtime3 = 1e-5;
-	int onoff1 = 0, onoff2 = 0, onoff3 = 0;
+	int onoff0 = 0, onoff1 = 0, onoff2 = 0, onoff3 = 0;
 	struct libsimul_ctx ctx;
 	libsimul_init(&ctx, dt);
 	read_file(&ctx, "inverterpwm3.txt");
 	init_simulation(&ctx);
+	set_switches(&ctx, 0, 1);
 	set_switches(&ctx, 1, 1);
 	set_switches(&ctx, 2, 1);
 	set_switches(&ctx, 3, 1);
+	cnt_remain0 = 1;
 	cnt_remain1 = 1;
 	cnt_remain2 = 1;
 	cnt_remain3 = 1;
@@ -75,9 +84,24 @@ int main(int argc, char **argv)
 		printf("%zu %g %g %g\n", i, get_V(&ctx, 8)-get_V(&ctx, 9),
 				get_V(&ctx, 9)-get_V(&ctx, 10),
 				get_V(&ctx, 10)-get_V(&ctx, 8));
+		cnt_remain0--;
 		cnt_remain1--;
 		cnt_remain2--;
 		cnt_remain3--;
+		if (cnt_remain0 == 0 && onoff0 == 1)
+		{
+			set_switches(&ctx, 0, 0);
+			cnt_remain0 = offtime0/dt;
+			onoff0 = 0;
+		}
+		else if (cnt_remain0 == 0 && onoff0 == 0)
+		{
+			ontime0 = 0.5/switch_f;
+			offtime0 = 0.5/switch_f;
+			cnt_remain0 = ontime0/dt;
+			set_switches(&ctx, 0, 1);
+			onoff0 = 1;
+		}
 		if (cnt_remain1 == 0 && onoff1 == 1)
 		{
 			set_switches(&ctx, 1, 0);
