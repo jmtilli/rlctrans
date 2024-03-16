@@ -1385,6 +1385,352 @@ Plot of inductor current:
 
 ![inductor current of PFC circuit](plots/pfcboostcurrent.png)
 
+### 3-phase active power factor correction (PFC) circuit based on boost converter
+
+Circuit schematic:
+
+![3-phase power factor correction circuit schematic](figs/pfc3.png)
+
+Netlist pfc3.txt:
+
+```
+# Three-phase voltage source
+1 0 V1 V=0 R=1e-1
+2 0 V2 V=0 R=1e-1
+3 0 V3 V=0 R=1e-1
+
+# Full-wave rectifier, phase 1 to 2, in: 1,2; out: 4,5
+1 4 D1 R=1e-3 diode_threshold=1e-6
+1 4 RD1 R=1e6
+2 4 D2 R=1e-3 diode_threshold=1e-6
+5 1 D3 R=1e-3 diode_threshold=1e-6
+5 1 RD2 R=1e6
+5 2 D4 R=1e-3 diode_threshold=1e-6
+
+# Boost converter, in: 4,5, out: 10,11
+4 10 D5b R=1e-3 diode_threshold=1e-2 on_recalc=0
+4 6 L1a L=5e-3
+4 6 RRL1a R=0.5e5
+6 7 RL1a R=30e-3
+5 8 L1b L=5e-3
+11 5 D6b R=1e-3 diode_threshold=1e-2 on_recalc=0
+5 8 RRL1b R=0.5e5
+8 9 RL1b R=30e-3
+7 9 S1 R=1e-3
+7 10 D5 R=1e-3 diode_threshold=1e-6
+7 10 RD5 R=1e6
+11 9 D6 R=1e-3 diode_threshold=1e-6
+
+# Full-wave rectifier, phase 2 to 3, in: 2,3; out: 12,13
+2 12 D7 R=1e-3 diode_threshold=1e-6
+2 12 RD7 R=1e6
+3 12 D8 R=1e-3 diode_threshold=1e-6
+13 2 D9 R=1e-3 diode_threshold=1e-6
+13 2 RD9 R=1e6
+13 3 D10 R=1e-3 diode_threshold=1e-6
+
+# Boost converter, in: 12,13, out: 10,11
+12 10 D11b R=1e-3 diode_threshold=1e-2 on_recalc=0
+12 14 L2a L=5e-3
+12 14 RRL2a R=0.5e5
+14 15 RL2a R=30e-3
+11 13 D12b R=1e-3 diode_threshold=1e-2 on_recalc=0
+13 16 L2b L=5e-3
+13 16 RRL2b R=0.5e5
+16 17 RL2b R=30e-3
+15 17 S2 R=1e-3
+15 10 D11 R=1e-3 diode_threshold=1e-6
+15 10 RD11 R=1e6
+11 17 D12 R=1e-3 diode_threshold=1e-6
+
+# Full-wave rectifier, phase 3 to 1, in: 3,1; out: 18,19
+3 18 D13 R=1e-3 diode_threshold=1e-6
+3 18 RD13 R=1e6
+1 18 D14 R=1e-3 diode_threshold=1e-6
+19 3 D15 R=1e-3 diode_threshold=1e-6
+19 3 RD15 R=1e6
+19 1 D16 R=1e-3 diode_threshold=1e-6
+
+# Boost converter, in: 18,19, out: 10,11
+18 10 D17b R=1e-3 diode_threshold=1e-2 on_recalc=0
+18 20 L3a L=5e-3
+18 20 RRL3a R=0.5e5
+20 21 RL3a R=30e-3
+11 19 D18b R=1e-3 diode_threshold=1e-2 on_recalc=0
+19 22 L3b L=5e-3
+19 22 RRL3b R=0.5e5
+22 23 RL3b R=30e-3
+21 23 S3 R=1e-3
+21 10 D17 R=1e-3 diode_threshold=1e-6
+21 10 RD17 R=1e6
+11 23 D18 R=1e-3 diode_threshold=1e-6
+
+# Output capacitor and load
+10 11 C1 C=47e-6 R=1e-3
+10 11 RL R=1000
+```
+
+Program to control it:
+```
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include "libsimul.h"
+
+const double dt = 1e-7; // 100 ns
+
+static inline int my_signum(double d)
+{
+	if (d > 0)
+	{
+		return 1;
+	}
+	if (d < 0)
+	{
+		return -1;
+	}
+	return 0;
+}
+
+int main(int argc, char **argv)
+{
+	size_t i;
+	double t = 0.0;
+	const double V_tgt = 230*sqrt(2)*sqrt(3)*1.2;
+	const double f_tgt = 50.0;
+	double Vrms12 = 230*sqrt(3);
+	double Vrms23 = 230*sqrt(3);
+	double Vrms31 = 230*sqrt(3);
+	double Vrms_accumulator12 = 0;
+	int Vrms_cnt12 = 0;
+	double Vrms_accumulator23 = 0;
+	int Vrms_cnt23 = 0;
+	double Vrms_accumulator31 = 0;
+	int cnt_remain1 = 90, cnt_remain2 = 90, cnt_remain3 = 90;
+	int cnt_on1 = 0, cnt_on2 = 0, cnt_on3 = 0;
+	int Vrms_cnt31 = 0;
+	int sw1 = 1, sw2 = 1, sw3 = 1;
+	int sign_last_nonzero12 = 0, sign_last_nonzero23 = 0;
+	int sign_last_nonzero31 = 0;
+	int cycle_cnt12 = 0, cycle_cnt23 = 0, cycle_cnt31 = 0;
+	double C;
+	struct libsimul_ctx ctx;
+	libsimul_init(&ctx, dt);
+	read_file(&ctx, "pfc3.txt");
+	init_simulation(&ctx);
+	set_switch_state(&ctx, "S1", sw1);
+	set_switch_state(&ctx, "S2", sw2);
+	set_switch_state(&ctx, "S3", sw3);
+	C = get_capacitor(&ctx, "C1");
+	recalc(&ctx);
+	for (i = 0; i < 5*1000*1000; i++)
+	{
+		double IV1, IV2, IV3;
+		double phi = 2*3.14159265358979*50.0*t;
+		double V1, V2, V3;
+		V1 = sqrt(2.0)*230.0*sin(phi);
+		V2 = sqrt(2.0)*230.0*sin(phi+2*3.14159265358979/3);
+		V3 = sqrt(2.0)*230.0*sin(phi+4*3.14159265358979/3);
+		Vrms_accumulator12 += (V1-V2)*(V1-V2);
+		Vrms_cnt12++;
+		Vrms_accumulator23 += (V2-V3)*(V2-V3);
+		Vrms_cnt23++;
+		Vrms_accumulator31 += (V3-V1)*(V3-V1);
+		Vrms_cnt31++;
+		double R = get_resistor(&ctx, "RL");
+		double V_out = get_V(&ctx, 10) - get_V(&ctx, 11);
+		double I_R = V_out/R;
+		double I_diff = C*(V_tgt-V_out)*2*f_tgt;
+		double I_ideal12 = (I_R + I_diff)*fabs(V1-V2)/Vrms12;
+		double I_ideal23 = (I_R + I_diff)*fabs(V2-V3)/Vrms23;
+		double I_ideal31 = (I_R + I_diff)*fabs(V3-V1)/Vrms31;
+		set_voltage_source(&ctx, "V1", V1);
+		set_voltage_source(&ctx, "V2", V2);
+		set_voltage_source(&ctx, "V3", V3);
+		t += dt;
+		simulation_step(&ctx);
+		IV1 = get_voltage_source_current(&ctx, "V1");
+		IV2 = get_voltage_source_current(&ctx, "V2");
+		IV3 = get_voltage_source_current(&ctx, "V3");
+		double IL1 = (get_inductor_current(&ctx, "L1b")-get_inductor_current(&ctx, "L1a"))/2;
+		double IL2 = (get_inductor_current(&ctx, "L2b")-get_inductor_current(&ctx, "L2a"))/2;
+		double IL3 = (get_inductor_current(&ctx, "L3b")-get_inductor_current(&ctx, "L3a"))/2;
+		V_out = get_V(&ctx, 10) - get_V(&ctx, 11);
+		printf("%zu %g %g %g %g %g %g %g\n", i, V_out, IV1, IL1, IV2, IL2, IV3, IL3);
+		if (my_signum(V1-V2) != 0)
+		{
+			if (sign_last_nonzero12 != my_signum(V1-V2))
+			{
+				cycle_cnt12++;
+				if (Vrms_cnt12 > 0.5/(2*f_tgt)/dt && cycle_cnt12 >= 2)
+				{
+					Vrms12 = sqrt(Vrms_accumulator12/Vrms_cnt12);
+					Vrms_accumulator12 = 0;
+					Vrms_cnt12 = 0;
+					if (Vrms12 < 230*sqrt(3)*0.9)
+					{
+						Vrms12 = 230*sqrt(3)*0.9;
+					}
+					else if (Vrms12 > 230*sqrt(3)*1.1)
+					{
+						Vrms12 = 230*sqrt(3)*1.1;
+					}
+				}
+			}
+			sign_last_nonzero12 = my_signum(V1-V2);
+		}
+		if (my_signum(V2-V3) != 0)
+		{
+			if (sign_last_nonzero23 != my_signum(V2-V3))
+			{
+				cycle_cnt23++;
+				if (Vrms_cnt23 > 0.5/(2*f_tgt)/dt && cycle_cnt23 >= 2)
+				{
+					Vrms23 = sqrt(Vrms_accumulator23/Vrms_cnt23);
+					Vrms_accumulator23 = 0;
+					Vrms_cnt23 = 0;
+					if (Vrms23 < 230*sqrt(3)*0.9)
+					{
+						Vrms23 = 230*sqrt(3)*0.9;
+					}
+					else if (Vrms23 > 230*sqrt(3)*1.1)
+					{
+						Vrms23 = 230*sqrt(3)*1.1;
+					}
+				}
+			}
+			sign_last_nonzero23 = my_signum(V2-V3);
+		}
+		if (my_signum(V3-V1) != 0)
+		{
+			if (sign_last_nonzero31 != my_signum(V3-V1))
+			{
+				cycle_cnt31++;
+				if (Vrms_cnt31 > 0.5/(2*f_tgt)/dt && cycle_cnt31 >= 2)
+				{
+					Vrms31 = sqrt(Vrms_accumulator31/Vrms_cnt31);
+					Vrms_accumulator31 = 0;
+					Vrms_cnt31 = 0;
+					if (Vrms31 < 230*sqrt(3)*0.9)
+					{
+						Vrms31 = 230*sqrt(3)*0.9;
+					}
+					else if (Vrms31 > 230*sqrt(3)*1.1)
+					{
+						Vrms31 = 230*sqrt(3)*1.1;
+					}
+				}
+			}
+			sign_last_nonzero31 = my_signum(V3-V1);
+		}
+
+		cnt_remain1--;
+		cnt_remain2--;
+		cnt_remain3--;
+
+		if (sw1 && IL1 > I_ideal12 + 0.01)
+		{
+			cnt_remain1 = 0;
+		}
+		else if (!sw1 && IL1 < I_ideal12 - 0.01)
+		{
+			cnt_remain1 = 0;
+		}
+		if (sw1)
+		{
+			cnt_on1++;
+		}
+		if (cnt_remain1 == 0)
+		{
+			sw1 = !sw1;
+			if (set_switch_state(&ctx, "S1", sw1) != 0)
+			{
+				recalc(&ctx);
+			}
+			if (sw1)
+			{
+				cnt_remain1 = 100000;
+				cnt_on1 = 0;
+			}
+			else
+			{
+				cnt_remain1 = 100000;
+			}
+		}
+
+		if (sw2 && IL2 > I_ideal23 + 0.01)
+		{
+			cnt_remain2 = 0;
+		}
+		else if (!sw2 && IL2 < I_ideal23 - 0.01)
+		{
+			cnt_remain2 = 0;
+		}
+		if (sw2)
+		{
+			cnt_on2++;
+		}
+		if (cnt_remain2 == 0)
+		{
+			sw2 = !sw2;
+			if (set_switch_state(&ctx, "S2", sw2) != 0)
+			{
+				recalc(&ctx);
+			}
+			if (sw2)
+			{
+				cnt_remain2 = 100000;
+				cnt_on2 = 0;
+			}
+			else
+			{
+				cnt_remain2 = 100000;
+			}
+		}
+
+		if (sw3 && IL3 > I_ideal31 + 0.01)
+		{
+			cnt_remain3 = 0;
+		}
+		else if (!sw3 && IL3 < I_ideal31 - 0.01)
+		{
+			cnt_remain3 = 0;
+		}
+		if (sw3)
+		{
+			cnt_on3++;
+		}
+		if (cnt_remain3 == 0)
+		{
+			sw3 = !sw3;
+			if (set_switch_state(&ctx, "S3", sw3) != 0)
+			{
+				recalc(&ctx);
+			}
+			if (sw3)
+			{
+				cnt_remain3 = 100000;
+				cnt_on3 = 0;
+			}
+			else
+			{
+				cnt_remain3 = 100000;
+			}
+		}
+	}
+	libsimul_free(&ctx);
+	return 0;
+}
+```
+
+Plot of output voltage:
+
+![output voltage of PFC circuit](plots/pfc3voltage.png)
+
+Plot of power supply current from single phase:
+
+![power supply current of PFC circuit from single phase](plots/pfc3current.png)
+
 ## License
 
 All of the material related to RLCTrans is licensed under the following MIT
