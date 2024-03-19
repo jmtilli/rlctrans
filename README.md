@@ -1,5 +1,7 @@
 # RLCTrans
 
+![RLCTrans](rlctrans.png)
+
 RLCTrans is a transient analysis program for circuits where the most important
 elements are resistors, inductors and capacitors, and where switches (either
 programmatically controlled or automatic diodes) are present. Transformers are
