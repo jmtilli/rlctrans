@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 		Vrms_cnt3++;
 		double R = get_resistor(&ctx, "RL");
 		double V_out = get_V(&ctx, 10) - get_V(&ctx, 11);
-		double I_R = V_out/R * 1.2 * sqrt(2.0);
+		double I_R = V_out/R/1.1; // FIXME experimental formula
 		double I_diff = C*(V_tgt-V_out)*2*f_tgt;
 		double I_ideal1 = (I_R + I_diff)*V1/Vrms1;
 		double I_ideal2 = (I_R + I_diff)*V2/Vrms2;
