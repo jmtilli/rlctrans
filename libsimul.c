@@ -344,6 +344,16 @@ void form_g_matrix(struct libsimul_ctx *ctx)
 			G = 1e-9; // FIXME this is bad.
 			continue;
 		}
+		else if (el->typ == TYPE_SHOCKLEY_DIODE)
+		{
+			double V = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+			if (V > el->Vmax)
+			{
+				V = el->Vmax;
+			}
+			G = el->I_s/el->V_T*exp(V/el->V_T);
+			el->R = 1.0/G;
+		}
 		else
 		{
 			G = 1.0/el->R;
@@ -454,9 +464,22 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 		{
 			continue;
 		}
+		else if (el->typ == TYPE_SHOCKLEY_DIODE)
+		{
+			double V = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+			if (V > el->Vmax)
+			{
+				V = el->Vmax;
+			}
+			Isrc = el->I_s*(1+(V/el->V_T-1)*exp(V/el->V_T));
+			el->I_src = Isrc;
+		}
+		else
+		{
+			Isrc = el->I_src;
+		}
 		n1 = el->n1;
 		n2 = el->n2;
-		Isrc = el->I_src;
 		if (n1 != 0)
 		{
 			ctx->Isrc_vector[n1-1] += Isrc;
@@ -502,6 +525,34 @@ double get_V(struct libsimul_ctx *ctx, int node)
 		return 0;
 	}
 	return ctx->V_vector[node-1];
+}
+
+int go_through_shockley_diodes(struct libsimul_ctx *ctx)
+{
+	const size_t elements_used_sz = ctx->elements_used_sz;
+	size_t i;
+	double V_across_diode;
+	double I_linear, I_nonlinear;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		struct element *el = ctx->elements_used[i];
+		if (el->typ != TYPE_SHOCKLEY_DIODE)
+		{
+			continue;
+		}
+		//printf("Found Shockley diode\n");
+		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+		I_nonlinear = el->I_s*(exp(V_across_diode/el->V_T)-1);
+		//printf("V_across_diode %g\n", V_across_diode);
+		I_linear = V_across_diode/el->R - el->I_src;
+		//printf("I_linear %g\n", I_linear);
+		if (fabs(I_nonlinear - I_linear) > el->I_accuracy)
+		{
+			//printf("Shockley iter\n");
+			return ERR_HAVE_TO_SIMULATE_AGAIN_SHOCKLEY_DIODE;
+		}
+	}
+	return 0;
 }
 
 // Return: 0 OK
@@ -843,6 +894,11 @@ int double_cmp(double a, double b)
 int go_through_all(struct libsimul_ctx *ctx, int recalc_loop)
 {
 	int ret = 0;
+	ret = go_through_shockley_diodes(ctx);
+	if (ret != 0)
+	{
+		return ret;
+	}
 	ret = go_through_diodes(ctx, recalc_loop);
 	if (ret != 0)
 	{
@@ -1039,7 +1095,10 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	double Lbase,
 	int primary,
 	double diode_threshold,
-	int on_recalc)
+	int on_recalc,
+	double VT,
+	double Is,
+	double Iaccuracy)
 {
 	size_t i;
 	struct element *el;
@@ -1054,7 +1113,17 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 		fprintf(stderr, "Capacitor %s must have capacitance\n", element);
 		exit(1);
 	}
-	if (typ != TYPE_INDUCTOR && R <= 0)
+	if (typ == TYPE_SHOCKLEY_DIODE && Is <= 0)
+	{
+		fprintf(stderr, "Shockley diode %s must have saturation current\n", element);
+		exit(1);
+	}
+	if (typ == TYPE_SHOCKLEY_DIODE && VT <= 0)
+	{
+		fprintf(stderr, "Shockley diode %s must have thermal voltage\n", element);
+		exit(1);
+	}
+	if ((typ != TYPE_INDUCTOR && typ != TYPE_SHOCKLEY_DIODE) && R <= 0)
 	{
 		fprintf(stderr, "Non-inductor %s must have resistance\n", element);
 		exit(1);
@@ -1118,6 +1187,9 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	el->current_switch_state_is_closed = 1;
 	el->diode_threshold = diode_threshold;
 	el->on_recalc = on_recalc;
+	el->I_s = Is;
+	el->I_accuracy = Iaccuracy;
+	el->V_T = VT;
 	if (typ == TYPE_VOLTAGE)
 	{
 		el->I_src = V/R;
@@ -1256,6 +1328,9 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 		int on_recalc = -1;
 		double Lbase = 0;
 		double diode_threshold = 0;
+		double Is = 0;
+		double VT = 0;
+		double Iaccuracy = 1e-6;
 		ret = getline_strip_comment(f, &line, &linesz);
 		if (ret == -ERR_NO_DATA)
 		{
@@ -1354,6 +1429,10 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 				//printf("It's a diode\n");
 				typ = TYPE_DIODE;
 				break;
+			case 'd':
+				//printf("It's a Shockley diode\n");
+				typ = TYPE_SHOCKLEY_DIODE;
+				break;
 			case 'R':
 				//printf("It's a resistor\n");
 				typ = TYPE_RESISTOR;
@@ -1400,6 +1479,11 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 				if (typ == TYPE_INDUCTOR)
 				{
 					fprintf(stderr, "Inductor resistance should be a separate element\n");
+					exit(1);
+				}
+				else if (typ == TYPE_SHOCKLEY_DIODE)
+				{
+					fprintf(stderr, "Shockley diode resistance should be a separate element\n");
 					exit(1);
 				}
 				R = strtod(val, &endptr);
@@ -1523,9 +1607,9 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			else if (strcmp(more, "Vmax") == 0)
 			{
 				//if (typ != TYPE_TRANSFORMER)
-				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT)
+				if (typ != TYPE_TRANSFORMER && typ != TYPE_TRANSFORMER_DIRECT && typ != TYPE_SHOCKLEY_DIODE)
 				{
-					fprintf(stderr, "Only transformers have maximum search voltage\n");
+					fprintf(stderr, "Only transformers and Shockley diodes have maximum search voltage\n");
 					exit(1);
 				}
 				Vmax = strtod(val, &endptr);
@@ -1561,6 +1645,48 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 				}
 				on_recalc = on_recalc_l;
 			}
+			else if (strcmp(more, "VT") == 0)
+			{
+				if (typ != TYPE_SHOCKLEY_DIODE)
+				{
+					fprintf(stderr, "Only Shockley diodes have thermal voltage");
+					exit(1);
+				}
+				VT = strtod(val, &endptr);
+				if (VT <= 0)
+				{
+					fprintf(stderr, "Invalid thermal voltage: %lf\n", VT);
+					exit(1);
+				}
+			}
+			else if (strcmp(more, "Is") == 0)
+			{
+				if (typ != TYPE_SHOCKLEY_DIODE)
+				{
+					fprintf(stderr, "Only Shockley diodes have saturation current");
+					exit(1);
+				}
+				Is = strtod(val, &endptr);
+				if (Is <= 0)
+				{
+					fprintf(stderr, "Invalid saturation current: %lf\n", Is);
+					exit(1);
+				}
+			}
+			else if (strcmp(more, "Iaccuracy") == 0)
+			{
+				if (typ != TYPE_SHOCKLEY_DIODE)
+				{
+					fprintf(stderr, "Only Shockley diodes have current accuracy");
+					exit(1);
+				}
+				Iaccuracy = strtod(val, &endptr);
+				if (Iaccuracy <= 0)
+				{
+					fprintf(stderr, "Invalid current accuracy: %lf\n", Iaccuracy);
+					exit(1);
+				}
+			}
 			else
 			{
 				fprintf(stderr, "Invalid parameter: %s\n", more);
@@ -1581,6 +1707,10 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 		{
 			fprintf(stderr, "Transformer primary %s must have maximum search voltage\n", third);
 			exit(1);
+		}
+		if (typ == TYPE_SHOCKLEY_DIODE && !has_vmax)
+		{
+			Vmax = 1.0; // default value
 		}
 		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && primary && Lbase <= 0)
 		{
@@ -1620,7 +1750,10 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			Lbase,
 			primary,
 			diode_threshold,
-			on_recalc);
+			on_recalc,
+			VT,
+			Is,
+			Iaccuracy);
 	}
 	fclose(f);
 	free(line);

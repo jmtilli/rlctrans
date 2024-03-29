@@ -2,7 +2,7 @@
 @strict
 
 $SRC_LIB=["libsimul.c"]
-$SRC_PROG=["buck.c", "buckramp.c", "buckgood.c", "inverterpwm.c", "rectifier.c", "transformer.c", "forward.c", "forwardgood.c", "flyback.c", "flybackgood.c", "pfcboost.c", "rectifier3.c", "pfc3.c", "inverterpwm3.c", "pfcsimple3.c"]
+$SRC_PROG=["buck.c", "buckramp.c", "buckgood.c", "inverterpwm.c", "rectifier.c", "transformer.c", "forward.c", "forwardgood.c", "flyback.c", "flybackgood.c", "pfcboost.c", "rectifier3.c", "pfc3.c", "inverterpwm3.c", "pfcsimple3.c", "shockleyrectifier.c"]
 $PROG=@sufsuball($SRC_PROG, ".c", "")
 $SRC=[@$SRC_LIB, @$SRC_PROG]
 $OBJ=@sufsuball($SRC, ".c", ".o")

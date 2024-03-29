@@ -6,8 +6,9 @@ enum {
 	ERR_HAVE_TO_SIMULATE_AGAIN = 1,
 	ERR_HAVE_TO_SIMULATE_AGAIN_DIODE = 2,
 	ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER = 3,
-	ERR_NO_MEMORY = 4,
-	ERR_NO_DATA = 5,
+	ERR_HAVE_TO_SIMULATE_AGAIN_SHOCKLEY_DIODE = 4,
+	ERR_NO_MEMORY = 5,
+	ERR_NO_DATA = 6,
 };
 
 int iswhiteonly(const char *ln);
@@ -22,6 +23,7 @@ enum element_type {
 	TYPE_SWITCH,
 	TYPE_VOLTAGE,
 	TYPE_DIODE,
+	TYPE_SHOCKLEY_DIODE,
 	TYPE_TRANSFORMER,
 	TYPE_TRANSFORMER_DIRECT,
 };
@@ -47,6 +49,9 @@ struct element {
 	double Vmin;
 	double Vmax;
 	double Lbase;
+	double I_s; // Shockley diode saturation current
+	double V_T; // Shockley diode thermal voltage
+	double I_accuracy; // Shockley diode current accuracy
 	double cur_phi_single; // only for primary
 	double dphi_single; // only for primary
 	int primary;
@@ -141,7 +146,10 @@ int add_element_used(
 	double Lbase,
 	int primary,
 	double diode_threshold,
-	int on_recalc);
+	int on_recalc,
+	double VT,
+	double Is,
+	double Iaccuracy);
 void read_file(struct libsimul_ctx *ctx, const char *fname);
 void init_simulation(struct libsimul_ctx *ctx);
 void recalc(struct libsimul_ctx *ctx);
