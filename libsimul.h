@@ -38,6 +38,7 @@ struct element {
 	int n2;
 	int current_switch_state_is_closed;
 	enum element_type typ;
+	double V_across_diode;
 	double V;
 	double I_src;
 	double Vinit;
@@ -76,6 +77,7 @@ enum xformerstatetype {
 };
 
 struct libsimul_ctx {
+	int has_shockley;
 	double dt;
 	double diode_threshold;
 

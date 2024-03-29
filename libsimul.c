@@ -347,10 +347,27 @@ void form_g_matrix(struct libsimul_ctx *ctx)
 		else if (el->typ == TYPE_SHOCKLEY_DIODE)
 		{
 			double V = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+			if (V < el->V_across_diode - 0.1 && V > 0)
+			{
+				V = el->V_across_diode - 0.1;
+			}
+			else if (V > el->V_across_diode + 0.1 && V > 0)
+			{
+				//printf("V was %g\n", V);
+				V = el->V_across_diode + 0.1;
+				if (V < 0)
+				{
+					V = 0;
+				}
+				//printf("Setting V to %g\n", V);
+			}
+#if 1
 			if (V > el->Vmax)
 			{
+				//printf("Vmax hit %g %g %g\n", el->V_across_diode, V, el->Vmax);
 				V = el->Vmax;
 			}
+#endif
 			G = el->I_s/el->V_T*exp(V/el->V_T);
 			el->R = 1.0/G;
 		}
@@ -467,10 +484,27 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 		else if (el->typ == TYPE_SHOCKLEY_DIODE)
 		{
 			double V = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+			if (V < el->V_across_diode - 0.1 && V > 0)
+			{
+				V = el->V_across_diode - 0.1;
+			}
+			else if (V > el->V_across_diode + 0.1 && V > 0)
+			{
+				//printf("V was %g\n", V);
+				V = el->V_across_diode + 0.1;
+				if (V < 0)
+				{
+					V = 0;
+				}
+				//printf("Setting V to %g\n", V);
+			}
+#if 1
 			if (V > el->Vmax)
 			{
+				//printf("Vmax hit %g %g %g\n", el->V_across_diode, V, el->Vmax);
 				V = el->Vmax;
 			}
+#endif
 			Isrc = el->I_s*(1+(V/el->V_T-1)*exp(V/el->V_T));
 			el->I_src = Isrc;
 		}
@@ -542,15 +576,55 @@ int go_through_shockley_diodes(struct libsimul_ctx *ctx)
 		}
 		//printf("Found Shockley diode\n");
 		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+		if (V_across_diode < 0)
+		{
+			el->V_across_diode = V_across_diode;
+		}
+		else if (V_across_diode > el->V_across_diode + 0.1)
+		{
+			el->V_across_diode += 0.1;
+			if (el->V_across_diode < 0)
+			{
+				el->V_across_diode = 0;
+			}
+		}
+		else if (V_across_diode < el->V_across_diode - 0.1)
+		{
+			el->V_across_diode -= 0.1;
+		}
+		else
+		{
+			el->V_across_diode = V_across_diode;
+		}
 		I_nonlinear = el->I_s*(exp(V_across_diode/el->V_T)-1);
 		//printf("V_across_diode %g\n", V_across_diode);
 		I_linear = V_across_diode/el->R - el->I_src;
+		//printf("I_nonlinear %g\n", I_nonlinear);
 		//printf("I_linear %g\n", I_linear);
 		if (fabs(I_nonlinear - I_linear) > el->I_accuracy)
 		{
 			//printf("Shockley iter\n");
 			return ERR_HAVE_TO_SIMULATE_AGAIN_SHOCKLEY_DIODE;
 		}
+	}
+	return 0;
+}
+int go_through_shockley_diodes_2(struct libsimul_ctx *ctx)
+{
+	const size_t elements_used_sz = ctx->elements_used_sz;
+	size_t i;
+	double V_across_diode;
+	double I_linear, I_nonlinear;
+	for (i = 0; i < elements_used_sz; i++)
+	{
+		struct element *el = ctx->elements_used[i];
+		if (el->typ != TYPE_SHOCKLEY_DIODE)
+		{
+			continue;
+		}
+		//printf("Found Shockley diode 2\n");
+		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+		el->V_across_diode = V_across_diode;
 	}
 	return 0;
 }
@@ -1190,6 +1264,7 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 	el->I_s = Is;
 	el->I_accuracy = Iaccuracy;
 	el->V_T = VT;
+	el->V_across_diode = 0;
 	if (typ == TYPE_VOLTAGE)
 	{
 		el->I_src = V/R;
@@ -1203,6 +1278,10 @@ int add_element_used(struct libsimul_ctx *ctx, const char *element, int n1, int 
 		el->I_src = Iinit;
 	}
 	ctx->elements_used_sz++;
+	if (typ == TYPE_SHOCKLEY_DIODE)
+	{
+		ctx->has_shockley = 1;
+	}
 	return 0;
 }
 
@@ -1791,6 +1870,11 @@ void simulation_step(struct libsimul_ctx *ctx)
 	size_t recalccnt = 0;
 	int status;
 	int recalc_loop = 0;
+	if (ctx->has_shockley)
+	{
+		form_g_matrix(ctx);
+		calc_lu(ctx);
+	}
 	form_isrc_vector(ctx);
 	calc_V(ctx);
 	while ((status = go_through_all(ctx, recalc_loop)) != 0)
@@ -1803,7 +1887,7 @@ void simulation_step(struct libsimul_ctx *ctx)
 			recalc_loop = 1;
 			break;
 		}
-		if (status != ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER)
+		if (status != ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER || ctx->has_shockley)
 		{
 			form_g_matrix(ctx);
 			calc_lu(ctx);
@@ -1823,7 +1907,7 @@ void simulation_step(struct libsimul_ctx *ctx)
 				fprintf(stderr, "Recalc loop, can't handle\n");
 				exit(1);
 			}
-			if (status != ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER)
+			if (status != ERR_HAVE_TO_SIMULATE_AGAIN_TRANSFORMER || ctx->has_shockley)
 			{
 				form_g_matrix(ctx);
 				calc_lu(ctx);
@@ -1832,10 +1916,12 @@ void simulation_step(struct libsimul_ctx *ctx)
 			calc_V(ctx);
 		}
 	}
+	go_through_shockley_diodes_2(ctx);
 }
 
 void libsimul_init(struct libsimul_ctx *ctx, double dt)
 {
+	ctx->has_shockley = 0;
 	ctx->dt = dt;
 	ctx->elements_used = NULL;
 	ctx->elements_used_sz = 0;
