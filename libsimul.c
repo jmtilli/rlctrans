@@ -1789,7 +1789,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 		}
 		if (typ == TYPE_SHOCKLEY_DIODE && !has_vmax)
 		{
-			Vmax = 1.0; // default value
+			Vmax = 1.5; // default value
 		}
 		if ((typ == TYPE_TRANSFORMER || typ == TYPE_TRANSFORMER_DIRECT) && primary && Lbase <= 0)
 		{
