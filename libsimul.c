@@ -1813,6 +1813,7 @@ void simulation_step(struct libsimul_ctx *ctx)
 	}
 	if (recalc_loop)
 	{
+		recalccnt = 0;
 		while ((status = go_through_all(ctx, recalc_loop)) != 0)
 		{
 			//fprintf(stderr, "Recalc\n");
