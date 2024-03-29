@@ -1407,8 +1407,8 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 		int on_recalc = -1;
 		double Lbase = 0;
 		double diode_threshold = 0;
-		double Is = 0;
-		double VT = 0;
+		double Is = 1e-12;
+		double VT = 26e-3;
 		double Iaccuracy = 1e-6;
 		ret = getline_strip_comment(f, &line, &linesz);
 		if (ret == -ERR_NO_DATA)
