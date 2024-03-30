@@ -368,7 +368,8 @@ void form_g_matrix(struct libsimul_ctx *ctx)
 				V = el->Vmax;
 			}
 #endif
-			G = el->I_s/el->V_T*exp(V/el->V_T);
+			el->expval = exp(V/el->V_T);
+			G = el->I_s/el->V_T*el->expval;
 			el->R = 1.0/G;
 		}
 		else
@@ -505,7 +506,8 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 				V = el->Vmax;
 			}
 #endif
-			Isrc = el->I_s*(1+(V/el->V_T-1)*exp(V/el->V_T));
+			//el->expval = exp(V/el->V_T); // already calculated
+			Isrc = el->I_s*(1+(V/el->V_T-1)*el->expval);
 			el->I_src = Isrc;
 		}
 		else
@@ -614,7 +616,6 @@ int go_through_shockley_diodes_2(struct libsimul_ctx *ctx)
 	const size_t elements_used_sz = ctx->elements_used_sz;
 	size_t i;
 	double V_across_diode;
-	double I_linear, I_nonlinear;
 	for (i = 0; i < elements_used_sz; i++)
 	{
 		struct element *el = ctx->elements_used[i];
