@@ -1862,8 +1862,12 @@ void init_simulation(struct libsimul_ctx *ctx)
 
 void recalc(struct libsimul_ctx *ctx)
 {
-	form_g_matrix(ctx);
-	calc_lu(ctx);
+	// If there is a Shockley diode, recalc will be done anyway
+	if (!ctx->has_shockley)
+	{
+		form_g_matrix(ctx);
+		calc_lu(ctx);
+	}
 }
 
 void simulation_step(struct libsimul_ctx *ctx)
