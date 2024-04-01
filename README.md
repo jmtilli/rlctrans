@@ -15,11 +15,13 @@ switched mode power supplies and active power factor correction circuits. The
 only form of nonlinearities supported are either changing component values from
 the C code as the simulation runs (e.g. inductor core saturation by decreasing
 inductance from the C code, or modifying load resistance over time to simulate
-varying power consumption), diodes and switches. Diode is somewhat idealized:
-when it's off there's no leakage, and when it's on there's no voltage drop
-apart from the drop caused by its resistance. Threshold voltage may be
-simulated by putting a voltage source in series with the diode, but that's
-still not the full Shockley diode equation.
+varying power consumption), diodes and switches. The old diode model is
+somewhat idealized: when it's off there's no leakage, and when it's on there's
+no voltage drop apart from the drop caused by its resistance. Threshold voltage
+may be simulated by putting a voltage source in series with the diode, but
+that's still not the full Shockley diode equation. However, the new diode model
+models diodes using the Shockley equation, which is nonlinear and therefore can
+easily slow down simulation by as much as 2x or more.
 
 MOSFETs may be simulated by a switch and possibly an antiparallel diode if
 needed, and BJTs by a switch, a voltage source that provides constant voltage
@@ -33,8 +35,9 @@ One aspect where RLCTrans totally fails is the determination of efficiency of
 switched mode power supplies, because full MOSFET and BJT simulation is not
 done, because transformer and inductor core losses are not modeled, and because
 the momentary high resistance at switch-on and switch-off times of MOSFETs is
-not modeled. Also further contributing to failure is the lack of nonlinear full
-Shockley diode simulation.
+not modeled. Also further contributing to failure was the lack of nonlinear
+full Shockley diode simulation, but today Shockley diode equation is supported
+in the new diode model.
 
 Partial transformer support is present, but currently the count of transformers
 in a circuit is limited to 1 if using the old transformer model. For new
@@ -71,7 +74,8 @@ The component name should begin with any of these letters:
 * `L` is an inductor (mandatory parameters: `L` for inductance)
 * `C` is a capacitor (mandatory parameters: `C` for capacitance, `R` for internal resistance)
 * `V` is a voltage source (mandatory parameters: `V` for voltage, `R` for internal resistance)
-* `D` is a diode (mandatory parameters: `R` for internal resistance, optional parameters: `diode_threshold` as the positive threshold voltage which avoids recalculation loops)
+* `D` is an ideal (impossible) diode (mandatory parameters: `R` for internal resistance, optional parameters: `diode_threshold` as the positive threshold voltage which avoids recalculation loops, `on_recalc` for setting forced state in case of recalculation loops)
+* `d` is a Shockley diode (optional parameters: `Is` for saturation current (default: 1e-12 for silicon PN diodes, change to 1e-6 for Schottky diodes), `VT` for thermal voltage including nonideality factor, `Iaccuracy` for needed accuracy of nonlinear current, `Vmax` for optional maximum forward voltage that will be considered (usually nonnecessary))
 * `S` is a switch (mandatory parameters: `R` for internal resistance)
 * `T` is a transformer winding using binary search model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn, `Vmin` for minimum search voltage, `Vmax` for maximum search voltage)
 * `X` is a transformer winding using linear model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn)
@@ -107,6 +111,10 @@ be very small, generally on the order of microvolts.
 
 In the worst case, if you can't avoid a recalculation loop, you need to replace
 diodes with switches that you control from the C code.
+
+Shockley diodes are less prone to recalculation loops, so using Shockley model
+instead of the ideal (impossible) diode model helps, at the cost of slower
+performance.
 
 ## Note about transformers
 
