@@ -14,3 +14,10 @@
 /libsimul.a
 .*.sw?
 /pfcboost
+/boostgood
+/buckboostgood
+/inverterpwm3
+/pfc3
+/pfcsimple3
+/rectifier3
+/shockleyrectifier
