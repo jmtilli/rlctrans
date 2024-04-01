@@ -62,9 +62,11 @@ control algorithm needs to be in the C code.
 
 Because the program is based on nodal analysis, resistance cannot be omitted
 for voltage sources, capacitors, switches, diodes and transformers. However,
-the resistance can be a small dummy value such as 1 milliohm. Inductors may
-not have a built-in resistance, but you may put a second resistor element in
-series as the inductor winding resistance.
+the resistance can be a small dummy value such as 1 milliohm. Inductors may not
+have a built-in resistance, but you may put a second resistor element in series
+as the inductor winding resistance. Also the resistance of Shockley diodes
+needs to be modeled as a second resistor element in series, since the Shockley
+model does not include resistance.
 
 ## Supported component types:
 
