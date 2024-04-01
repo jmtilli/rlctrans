@@ -64,6 +64,7 @@ struct element {
 	double transformer_direct_const;
 	double diode_threshold;
 	int on_recalc;
+	double expval;
 };
 
 enum xformerstatetype {
