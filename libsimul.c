@@ -684,6 +684,7 @@ void go_through_inductors(struct libsimul_ctx *ctx)
 {
 	size_t i;
 	double V_across_inductor;
+	double V_across_resistor;
 	double dI;
 	int oldsign, newsign;
 	for (i = 0; i < ctx->elements_used_sz; i++)
@@ -694,6 +695,8 @@ void go_through_inductors(struct libsimul_ctx *ctx)
 			continue;
 		}
 		V_across_inductor = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+		V_across_resistor = -el->R*el->I_src;
+		V_across_inductor -= V_across_resistor;
 		dI = -V_across_inductor/el->L*ctx->dt;
 #if 0
 		if (fabs(V_across_inductor) > 100)
@@ -1556,12 +1559,7 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			val = &equals[1];
 			if (strcmp(more, "R") == 0)
 			{
-				if (typ == TYPE_INDUCTOR)
-				{
-					fprintf(stderr, "Inductor resistance should be a separate element\n");
-					exit(1);
-				}
-				else if (typ == TYPE_SHOCKLEY_DIODE)
+				if (typ == TYPE_SHOCKLEY_DIODE)
 				{
 					fprintf(stderr, "Shockley diode resistance should be a separate element\n");
 					exit(1);
