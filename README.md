@@ -62,22 +62,18 @@ control algorithm needs to be in the C code.
 
 Because the program is based on nodal analysis, resistance cannot be omitted
 for voltage sources, capacitors, switches, diodes and transformers. However,
-the resistance can be a small dummy value such as 1 milliohm. Inductors may not
-have a built-in resistance, but you may put a second resistor element in series
-as the inductor winding resistance. Also the resistance of Shockley diodes
-needs to be modeled as a second resistor element in series, since the Shockley
-model does not include resistance.
+the resistance can be a small dummy value such as 1 milliohm.
 
 ## Supported component types:
 
 The component name should begin with any of these letters:
 
 * `R` is a resistor (mandatory parameters: `R` for resistance)
-* `L` is an inductor (mandatory parameters: `L` for inductance)
+* `L` is an inductor (mandatory parameters: `L` for inductance, optional parameters: `R` for internal resistance)
 * `C` is a capacitor (mandatory parameters: `C` for capacitance, `R` for internal resistance)
 * `V` is a voltage source (mandatory parameters: `V` for voltage, `R` for internal resistance)
 * `D` is an ideal (impossible) diode (mandatory parameters: `R` for internal resistance, optional parameters: `diode_threshold` as the positive threshold voltage which avoids recalculation loops, `on_recalc` for setting forced state in case of recalculation loops)
-* `d` is a Shockley diode (optional parameters: `Is` for saturation current (default: 1e-12 for silicon PN diodes, change to 1e-6 for Schottky diodes), `VT` for thermal voltage including nonideality factor, `Iaccuracy` for needed accuracy of nonlinear current, `Vmax` for optional maximum forward voltage that will be considered (usually nonnecessary))
+* `d` is a Shockley diode (optional parameters: `Is` for saturation current (default: 1e-12 for silicon PN diodes, change to 1e-6 for Schottky diodes), `VT` for thermal voltage including nonideality factor, `Iaccuracy` for needed accuracy of nonlinear current, `Vmax` for optional maximum forward voltage that will be considered (usually nonnecessary), `R` for internal resistance)
 * `S` is a switch (mandatory parameters: `R` for internal resistance)
 * `T` is a transformer winding using binary search model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn, `Vmin` for minimum search voltage, `Vmax` for maximum search voltage)
 * `X` is a transformer winding using linear model (mandatory parameters: `N` for turns ratio, `R` for internal resistance, `primary` for flag telling if it's primary winding (1) or secondary winding (0), and for primary windings too: `Lbase` for theoretical inductance if there was only one turn)
