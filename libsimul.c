@@ -347,6 +347,10 @@ void form_g_matrix(struct libsimul_ctx *ctx)
 		else if (el->typ == TYPE_SHOCKLEY_DIODE)
 		{
 			double V = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+			double I_model, V_across_resistor;
+			I_model = V*el->G_R_shockley - el->I_src;
+			V_across_resistor = el->R*I_model;
+			V -= V_across_resistor;
 			if (V < el->V_across_diode - 0.1 && V > 0)
 			{
 				V = el->V_across_diode - 0.1;
@@ -369,8 +373,11 @@ void form_g_matrix(struct libsimul_ctx *ctx)
 			}
 #endif
 			el->expval = exp(V/el->V_T);
+			el->I_model = I_model;
 			G = el->I_s/el->V_T*el->expval;
-			el->R = 1.0/G;
+			el->G_shockley = G; // not including resistance
+			G = 1.0/(1.0/G + el->R);
+			el->G_R_shockley = G; // including resistance
 		}
 		else
 		{
@@ -485,6 +492,11 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 		else if (el->typ == TYPE_SHOCKLEY_DIODE)
 		{
 			double V = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+			double I_model, V_across_resistor;
+			I_model = el->I_model;
+			//I_model = V*el->G_R_shockley - el->I_src;
+			V_across_resistor = el->R*I_model;
+			V -= V_across_resistor;
 			if (V < el->V_across_diode - 0.1 && V > 0)
 			{
 				V = el->V_across_diode - 0.1;
@@ -508,7 +520,20 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 #endif
 			//el->expval = exp(V/el->V_T); // already calculated
 			Isrc = el->I_s*(1+(V/el->V_T-1)*el->expval);
-			el->I_src = Isrc;
+			// Isrc and el->G_shockley in parallel, el->R in series
+			// converted to, in series:
+			// 1. voltage Isrc/el->G_shockley
+			// 2. resistor 1.0/el->G_shockley
+			// 3. resistor el->R
+			// converted to, in series:
+			// 1. voltage Isrc/el->G_shockley
+			// 2. resistor 1.0/el->G_shockley + el->R
+			// converted to, in parallel:
+			// 1. current src Isrc*el->G_R_shockley/el->G_shockley
+			// 2. conductance el->G_R_shockley
+			// Here (2) is el->G_R_shockley
+			Isrc *= el->G_R_shockley/el->G_shockley;
+			el->I_src = Isrc; // including resistance
 		}
 		else
 		{
@@ -568,6 +593,7 @@ int go_through_shockley_diodes(struct libsimul_ctx *ctx)
 	const size_t elements_used_sz = ctx->elements_used_sz;
 	size_t i;
 	double V_across_diode;
+	double V_across_resistor;
 	double I_linear, I_nonlinear;
 	for (i = 0; i < elements_used_sz; i++)
 	{
@@ -578,6 +604,9 @@ int go_through_shockley_diodes(struct libsimul_ctx *ctx)
 		}
 		//printf("Found Shockley diode\n");
 		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+		I_linear = V_across_diode*el->G_R_shockley - el->I_src;
+		V_across_resistor = el->R*I_linear;
+		V_across_diode -= V_across_resistor;
 		if (V_across_diode < 0)
 		{
 			el->V_across_diode = V_across_diode;
@@ -600,7 +629,6 @@ int go_through_shockley_diodes(struct libsimul_ctx *ctx)
 		}
 		I_nonlinear = el->I_s*(exp(V_across_diode/el->V_T)-1);
 		//printf("V_across_diode %g\n", V_across_diode);
-		I_linear = V_across_diode/el->R - el->I_src;
 		//printf("I_nonlinear %g\n", I_nonlinear);
 		//printf("I_linear %g\n", I_linear);
 		if (fabs(I_nonlinear - I_linear) > el->I_accuracy)
@@ -616,6 +644,8 @@ int go_through_shockley_diodes_2(struct libsimul_ctx *ctx)
 	const size_t elements_used_sz = ctx->elements_used_sz;
 	size_t i;
 	double V_across_diode;
+	double V_across_resistor;
+	double I_model;
 	for (i = 0; i < elements_used_sz; i++)
 	{
 		struct element *el = ctx->elements_used[i];
@@ -625,6 +655,9 @@ int go_through_shockley_diodes_2(struct libsimul_ctx *ctx)
 		}
 		//printf("Found Shockley diode 2\n");
 		V_across_diode = get_V(ctx, el->n1) - get_V(ctx, el->n2);
+		I_model = V_across_diode*el->G_R_shockley - el->I_src;
+		V_across_resistor = el->R*I_model;
+		V_across_diode -= V_across_resistor;
 		el->V_across_diode = V_across_diode;
 	}
 	return 0;
@@ -1559,11 +1592,6 @@ void read_file(struct libsimul_ctx *ctx, const char *fname)
 			val = &equals[1];
 			if (strcmp(more, "R") == 0)
 			{
-				if (typ == TYPE_SHOCKLEY_DIODE)
-				{
-					fprintf(stderr, "Shockley diode resistance should be a separate element\n");
-					exit(1);
-				}
 				R = strtod(val, &endptr);
 				if (R <= 0)
 				{

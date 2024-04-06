@@ -41,10 +41,13 @@ struct element {
 	double V_across_diode;
 	double V;
 	double I_src;
+	double I_model;
 	double Vinit;
 	double Iinit;
 	double L;
 	double R;
+	double G_shockley;
+	double G_R_shockley;
 	double C;
 	double N;
 	double Vmin;
