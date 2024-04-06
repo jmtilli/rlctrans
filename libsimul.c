@@ -532,7 +532,10 @@ void form_isrc_vector(struct libsimul_ctx *ctx)
 			// 1. current src Isrc*el->G_R_shockley/el->G_shockley
 			// 2. conductance el->G_R_shockley
 			// Here (2) is el->G_R_shockley
-			Isrc *= el->G_R_shockley/el->G_shockley;
+			if (el->G_shockley != 0)
+			{
+				Isrc *= el->G_R_shockley/el->G_shockley;
+			}
 			el->I_src = Isrc; // including resistance
 		}
 		else
